@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import type { Tournament, Match } from '../types'
+import type { Tournament, Match, Player } from '../types'
 import {
   calculateStandings,
   formatWhatsAppSummary,
@@ -21,6 +21,10 @@ import {
   Cloud,
   CloudCheck,
   FolderOpen,
+  UserPlus,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react'
 
 interface Props {
@@ -43,6 +47,13 @@ export const TournamentView: React.FC<Props> = ({
   const [activeTab, setActiveTab] = useState<'matches' | 'standings'>('matches')
   const [showWinnerModal, setShowWinnerModal] = useState<boolean>(false)
   const [copiedLink, setCopiedLink] = useState<boolean>(false)
+
+  // Mid-tournament add player modal
+  const [showAddPlayerModal, setShowAddPlayerModal] = useState(false)
+  const [newPlayerName, setNewPlayerName] = useState('')
+
+  // Editing historical match ID
+  const [editingHistoricalMatchId, setEditingHistoricalMatchId] = useState<string | null>(null)
 
   const standings = calculateStandings(tournament.players, tournament.matches)
   const playersMap = new Map(tournament.players.map((p) => [p.id, p]))
@@ -75,7 +86,7 @@ export const TournamentView: React.FC<Props> = ({
     const nextMatch = generateNextMatchForCourt(tournament, courtNumber)
     if (!nextMatch) {
       alert(
-        'No hay suficientes jugadores libres (se necesitan al menos 4 que no estén jugando). Espera a que termine otro partido.'
+        'No hay suficientes jugadores libres (se necesitan al menos 4 que no estén jugando). Espera a que termine otro partido o suma un nuevo jugador.'
       )
       return
     }
@@ -84,6 +95,24 @@ export const TournamentView: React.FC<Props> = ({
       ...tournament,
       matches: [...tournament.matches, nextMatch],
     })
+  }
+
+  // Sumar un nuevo jugador en pleno torneo (por si llega tarde o un suplente)
+  const handleAddPlayerMidTournament = () => {
+    const trimmed = newPlayerName.trim()
+    if (!trimmed) return
+
+    const newP: Player = {
+      id: `p-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+      name: trimmed,
+    }
+
+    onUpdateTournament({
+      ...tournament,
+      players: [...tournament.players, newP],
+    })
+    setNewPlayerName('')
+    setShowAddPlayerModal(false)
   }
 
   const handleFinishTournament = () => {
@@ -260,18 +289,28 @@ export const TournamentView: React.FC<Props> = ({
       {/* Tab: Matches */}
       {activeTab === 'matches' && (
         <div className="space-y-5">
-          {/* Waiting / Resting Players Status Box */}
-          {waitingPlayers.length > 0 && (
-            <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-bold text-amber-400 flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" />
-                  Esperando próximo turno ({waitingPlayers.length} en el banco):
-                </span>
-                <span className="text-[11px] text-slate-400">
-                  Entran apenas termine una cancha
-                </span>
-              </div>
+          {/* Waiting / Resting Players Status Box with Add Player button */}
+          <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-amber-400 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                En el banco ({waitingPlayers.length} jugadores esperando turno):
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowAddPlayerModal(true)}
+                className="text-[11px] px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-lime-400 font-bold rounded-lg border border-slate-700 flex items-center gap-1 transition cursor-pointer"
+              >
+                <UserPlus className="w-3 h-3" />
+                + Sumar jugador
+              </button>
+            </div>
+
+            {waitingPlayers.length === 0 ? (
+              <p className="text-xs text-slate-500 italic">
+                Todos los jugadores están actualmente en la cancha jugando.
+              </p>
+            ) : (
               <div className="flex flex-wrap gap-1.5">
                 {waitingPlayers.map((p) => {
                   const st = standings.find((s) => s.playerId === p.id)
@@ -289,8 +328,8 @@ export const TournamentView: React.FC<Props> = ({
                   )
                 })}
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {/* Court Slots: One slot per Court! */}
           <div className="space-y-4">
@@ -302,6 +341,7 @@ export const TournamentView: React.FC<Props> = ({
                       <MatchCard
                         match={match}
                         playersMap={playersMap}
+                        allPlayers={tournament.players}
                         onUpdateMatch={handleUpdateMatch}
                       />
 
@@ -343,40 +383,58 @@ export const TournamentView: React.FC<Props> = ({
                 Historial de Partidos Finalizados ({completedMatches.length})
               </div>
 
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {completedMatches.slice().reverse().map((m) => {
                   const t1a = playersMap.get(m.team1[0])?.name
                   const t1b = playersMap.get(m.team1[1])?.name
                   const t2a = playersMap.get(m.team2[0])?.name
                   const t2b = playersMap.get(m.team2[1])?.name
                   const is1 = m.winner === 'team1'
+                  const isEditingThis = editingHistoricalMatchId === m.id
 
                   return (
-                    <div
-                      key={m.id}
-                      className="p-3 bg-slate-950 border border-slate-800 rounded-xl flex items-center justify-between text-xs"
-                    >
-                      <div className="space-y-0.5">
-                        <span className="text-[10px] text-slate-500 font-semibold">
-                          Cancha {m.courtNumber} • Partido #{m.matchNumber}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className={`font-bold ${is1 ? 'text-lime-400' : 'text-slate-400'}`}>
-                            {t1a} y {t1b}
+                    <div key={m.id} className="space-y-2">
+                      <div
+                        onClick={() => setEditingHistoricalMatchId(isEditingThis ? null : m.id)}
+                        className="p-3 bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl flex items-center justify-between text-xs transition cursor-pointer"
+                      >
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] text-slate-500 font-semibold">
+                            Cancha {m.courtNumber} • Partido #{m.matchNumber}
                           </span>
-                          <span className="text-slate-600 font-black">vs</span>
-                          <span className={`font-bold ${!is1 ? 'text-cyan-400' : 'text-slate-400'}`}>
-                            {t2a} y {t2b}
+                          <div className="flex items-center gap-2">
+                            <span className={`font-bold ${is1 ? 'text-lime-400' : 'text-slate-400'}`}>
+                              {t1a} y {t1b}
+                            </span>
+                            <span className="text-slate-600 font-black">vs</span>
+                            <span className={`font-bold ${!is1 ? 'text-cyan-400' : 'text-slate-400'}`}>
+                              {t2a} y {t2b}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-white text-sm bg-slate-900 px-2 py-1 rounded border border-slate-800">
+                            {m.score1} - {m.score2}
+                            {m.isTiebreak && <span className="text-[10px] text-amber-400 ml-1">TB</span>}
+                          </span>
+                          <span className="text-slate-500 text-xs">
+                            {isEditingThis ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                           </span>
                         </div>
                       </div>
 
-                      <div className="text-right">
-                        <span className="font-black text-white text-sm bg-slate-900 px-2 py-1 rounded border border-slate-800">
-                          {m.score1} - {m.score2}
-                          {m.isTiebreak && <span className="text-[10px] text-amber-400 ml-1">TB</span>}
-                        </span>
-                      </div>
+                      {/* If expanded, render full MatchCard to edit players or score of this historical match! */}
+                      {isEditingThis && (
+                        <div className="pl-2 border-l-2 border-lime-400/50">
+                          <MatchCard
+                            match={m}
+                            playersMap={playersMap}
+                            allPlayers={tournament.players}
+                            onUpdateMatch={handleUpdateMatch}
+                          />
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -411,6 +469,64 @@ export const TournamentView: React.FC<Props> = ({
             <Share2 className="w-4 h-4" />
             Compartir Posiciones en Grupo de WhatsApp
           </button>
+        </div>
+      )}
+
+      {/* Add Player Mid-Tournament Modal */}
+      {showAddPlayerModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-sm w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-lime-400" />
+                Sumar Jugador al Torneo
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowAddPlayerModal(false)}
+                className="text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Ingresa el nombre del amigo que se suma (entrará al banco y podrás asignarlo a cualquier partido):
+            </p>
+
+            <input
+              type="text"
+              value={newPlayerName}
+              onChange={(e) => setNewPlayerName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleAddPlayerMidTournament()
+                }
+              }}
+              placeholder="Nombre del amigo..."
+              autoFocus
+              className="w-full px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-lime-400"
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowAddPlayerModal(false)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleAddPlayerMidTournament}
+                disabled={!newPlayerName.trim()}
+                className="flex-1 py-2.5 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-xl text-xs disabled:opacity-40 transition cursor-pointer"
+              >
+                Sumar Amigo
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

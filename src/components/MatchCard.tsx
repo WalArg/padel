@@ -1,18 +1,26 @@
-import React from 'react'
+import React, { useState } from 'react'
 import type { Match, Player } from '../types'
-import { Trophy, Flame, CheckCircle2, Zap, Edit3 } from 'lucide-react'
+import { Trophy, Flame, CheckCircle2, Zap, Edit3, Users, ArrowLeftRight, X, Check } from 'lucide-react'
 
 interface Props {
   match: Match
   playersMap: Map<string, Player>
+  allPlayers: Player[]
   onUpdateMatch: (updatedMatch: Match) => void
 }
 
 export const MatchCard: React.FC<Props> = ({
   match,
   playersMap,
+  allPlayers,
   onUpdateMatch,
 }) => {
+  const [isEditingPlayers, setIsEditingPlayers] = useState(false)
+  const [editT1_0, setEditT1_0] = useState(match.team1[0])
+  const [editT1_1, setEditT1_1] = useState(match.team1[1])
+  const [editT2_0, setEditT2_0] = useState(match.team2[0])
+  const [editT2_1, setEditT2_1] = useState(match.team2[1])
+
   const p1 = playersMap.get(match.team1[0])?.name || 'Jugador'
   const p2 = playersMap.get(match.team1[1])?.name || 'Jugador'
   const p3 = playersMap.get(match.team2[0])?.name || 'Jugador'
@@ -39,7 +47,6 @@ export const MatchCard: React.FC<Props> = ({
   const isTeam1Winner = match.winner === 'team1' || (!match.completed && potentialWinner === 'team1')
   const isTeam2Winner = match.winner === 'team2' || (!match.completed && potentialWinner === 'team2')
 
-  // Change games without automatically closing/completing the match!
   const handleSetGames = (team: 'team1' | 'team2', games: number) => {
     const next1 = team === 'team1' ? games : score1
     const next2 = team === 'team2' ? games : score2
@@ -68,7 +75,6 @@ export const MatchCard: React.FC<Props> = ({
       score2: next2,
       isTiebreak: autoIsTb,
       winner: autoWinner,
-      // Keep completed as false until explicitly confirmed by the user!
       completed: false,
     })
   }
@@ -124,6 +130,47 @@ export const MatchCard: React.FC<Props> = ({
     })
   }
 
+  const handleStartEditPlayers = () => {
+    setEditT1_0(match.team1[0])
+    setEditT1_1(match.team1[1])
+    setEditT2_0(match.team2[0])
+    setEditT2_1(match.team2[1])
+    setIsEditingPlayers(true)
+  }
+
+  const handleSavePlayers = () => {
+    const selected = [editT1_0, editT1_1, editT2_0, editT2_1]
+    const unique = new Set(selected)
+    if (unique.size !== 4) {
+      alert('Un jugador no puede estar duplicado en el mismo partido.')
+      return
+    }
+
+    onUpdateMatch({
+      ...match,
+      team1: [editT1_0, editT1_1],
+      team2: [editT2_0, editT2_1],
+    })
+    setIsEditingPlayers(false)
+  }
+
+  // Swap partners between teams: e.g. T1_1 <-> T2_0
+  const handleSwapCrossed = () => {
+    const temp = editT1_1
+    setEditT1_1(editT2_0)
+    setEditT2_0(temp)
+  }
+
+  // Swap teams: Team 1 <-> Team 2
+  const handleSwapTeams = () => {
+    const temp0 = editT1_0
+    const temp1 = editT1_1
+    setEditT1_0(editT2_0)
+    setEditT1_1(editT2_1)
+    setEditT2_0(temp0)
+    setEditT2_1(temp1)
+  }
+
   return (
     <div
       className={`rounded-2xl border transition-all ${
@@ -148,27 +195,160 @@ export const MatchCard: React.FC<Props> = ({
           <span className="text-xs text-slate-500 font-medium">Partido #{match.matchNumber}</span>
         </div>
 
-        {match.completed ? (
-          <div className="flex items-center gap-1.5">
-            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
-              <CheckCircle2 className="w-3 h-3" />
-              Finalizado
+        <div className="flex items-center gap-1.5">
+          {/* Button to edit/swap players */}
+          <button
+            type="button"
+            onClick={handleStartEditPlayers}
+            className="text-[11px] text-lime-400 hover:text-lime-300 px-2.5 py-1 bg-lime-400/10 hover:bg-lime-400/20 border border-lime-400/30 rounded-lg transition flex items-center gap-1 cursor-pointer font-semibold"
+          >
+            <Users className="w-3 h-3" />
+            Cambiar jugadores
+          </button>
+
+          {match.completed ? (
+            <div className="flex items-center gap-1">
+              <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded-full">
+                <CheckCircle2 className="w-3 h-3" />
+                Finalizado
+              </span>
+              <button
+                type="button"
+                onClick={handleUnlockToEdit}
+                className="text-[11px] text-slate-400 hover:text-white px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded-md transition flex items-center gap-1 cursor-pointer"
+              >
+                <Edit3 className="w-3 h-3" />
+                Editar
+              </button>
+            </div>
+          ) : (
+            <span className="text-xs text-amber-400/90 font-medium animate-pulse hidden sm:inline">
+              En juego
             </span>
+          )}
+        </div>
+      </div>
+
+      {/* Players Edit Modal / Panel */}
+      {isEditingPlayers && (
+        <div className="p-4 bg-slate-950 border border-lime-500/40 rounded-xl space-y-3.5 shadow-lg">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <h4 className="font-bold text-white text-xs uppercase tracking-wider flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-lime-400" />
+              Editar Jugadores de Cancha {match.courtNumber}
+            </h4>
             <button
               type="button"
-              onClick={handleUnlockToEdit}
-              className="text-[11px] text-slate-400 hover:text-white px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded-md transition flex items-center gap-1"
+              onClick={() => setIsEditingPlayers(false)}
+              className="text-slate-400 hover:text-white cursor-pointer"
             >
-              <Edit3 className="w-3 h-3" />
-              Editar
+              <X className="w-4 h-4" />
             </button>
           </div>
-        ) : (
-          <span className="text-xs text-amber-400/90 font-medium animate-pulse">
-            En juego
-          </span>
-        )}
-      </div>
+
+          <p className="text-[11px] text-slate-400">
+            Cambia a cualquier jugador por otro de la lista o intercambia parejas según prefieras:
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            {/* Pareja A Selector */}
+            <div className="space-y-2 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+              <span className="text-[10px] font-bold text-lime-400 uppercase tracking-wide block">
+                Pareja A
+              </span>
+              <select
+                value={editT1_0}
+                onChange={(e) => setEditT1_0(e.target.value)}
+                className="w-full bg-slate-950 text-white text-xs p-2 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-lime-400"
+              >
+                {allPlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={editT1_1}
+                onChange={(e) => setEditT1_1(e.target.value)}
+                className="w-full bg-slate-950 text-white text-xs p-2 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-lime-400"
+              >
+                {allPlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Pareja B Selector */}
+            <div className="space-y-2 bg-slate-900/80 p-3 rounded-lg border border-slate-800">
+              <span className="text-[10px] font-bold text-cyan-400 uppercase tracking-wide block">
+                Pareja B
+              </span>
+              <select
+                value={editT2_0}
+                onChange={(e) => setEditT2_0(e.target.value)}
+                className="w-full bg-slate-950 text-white text-xs p-2 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+              >
+                {allPlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={editT2_1}
+                onChange={(e) => setEditT2_1(e.target.value)}
+                className="w-full bg-slate-950 text-white text-xs p-2 rounded-lg border border-slate-700 focus:outline-none focus:ring-1 focus:ring-cyan-400"
+              >
+                {allPlayers.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Quick Swap helpers */}
+          <div className="flex gap-2 text-xs">
+            <button
+              type="button"
+              onClick={handleSwapCrossed}
+              className="flex-1 py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg flex items-center justify-center gap-1.5 transition border border-slate-700 cursor-pointer"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5 text-lime-400" />
+              Intercambiar compañeros
+            </button>
+            <button
+              type="button"
+              onClick={handleSwapTeams}
+              className="flex-1 py-1.5 px-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg flex items-center justify-center gap-1.5 transition border border-slate-700 cursor-pointer"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5 text-cyan-400" />
+              Invertir Pareja A ↔ B
+            </button>
+          </div>
+
+          <div className="flex gap-2 pt-2 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={() => setIsEditingPlayers(false)}
+              className="flex-1 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs cursor-pointer"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              onClick={handleSavePlayers}
+              className="flex-1 py-2 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1 shadow-md transition cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              Guardar Cruce
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Teams Grid */}
       <div className="grid grid-cols-2 gap-3 items-stretch">
