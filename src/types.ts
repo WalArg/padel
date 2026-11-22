@@ -44,6 +44,7 @@ export interface PlayerStats {
   won: number // Puntos principales: 1 victoria = 1 punto
   lost: number // 0 puntos si pierde
   points: number // Total puntos (igual a won)
+  byes: number // Cantidad de rondas que descansó
   gamesFor: number
   gamesAgainst: number
   gamesDiff: number

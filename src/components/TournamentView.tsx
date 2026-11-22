@@ -11,7 +11,7 @@ import {
   ChevronRight,
   PlusCircle,
   RotateCcw,
-  AlertCircle,
+  Coffee,
 } from 'lucide-react'
 
 interface Props {
@@ -121,7 +121,7 @@ export const TournamentView: React.FC<Props> = ({
               Pádel
             </span>
             <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
-              Mexicano • Por Nivel
+              Mexicano • {tournament.courtsCount} {tournament.courtsCount === 1 ? 'Cancha' : 'Canchas'}
             </span>
           </div>
           <h1 className="text-xl font-black text-white">{tournament.name}</h1>
@@ -214,17 +214,33 @@ export const TournamentView: React.FC<Props> = ({
             </button>
           </div>
 
-          {/* Resting Players (Byes) Alert */}
+          {/* Resting Players (Byes) Card */}
           {currentRound?.byes && currentRound.byes.length > 0 && (
-            <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs px-3.5 py-2.5 rounded-xl flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
-              <span>
-                <strong>Descansan esta ronda:</strong>{' '}
-                {currentRound.byes
-                  .map((id) => playersMap.get(id)?.name)
-                  .filter(Boolean)
-                  .join(', ')}
-              </span>
+            <div className="bg-slate-900/90 border border-amber-500/30 rounded-2xl p-4 space-y-2.5 shadow-md">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                  <Coffee className="w-4 h-4" />
+                  Descansan en esta ronda ({currentRound.byes.length})
+                </span>
+                <span className="text-[11px] text-slate-400">
+                  Rotan a la cancha en la siguiente
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {currentRound.byes.map((id) => {
+                  const p = playersMap.get(id)
+                  if (!p) return null
+                  return (
+                    <span
+                      key={id}
+                      className="px-2.5 py-1 rounded-lg bg-slate-950 border border-slate-800 text-xs font-semibold text-slate-200 flex items-center gap-1.5 shadow-sm"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                      {p.name}
+                    </span>
+                  )
+                })}
+              </div>
             </div>
           )}
 

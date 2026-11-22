@@ -11,6 +11,7 @@ export function calculateStandings(players: Player[], rounds: Round[]): PlayerSt
       won: 0,
       lost: 0,
       points: 0,
+      byes: getByeCount(p.id, rounds),
       gamesFor: 0,
       gamesAgainst: 0,
       gamesDiff: 0,
@@ -57,12 +58,12 @@ export function calculateStandings(players: Player[], rounds: Round[]): PlayerSt
   return Array.from(statsMap.values()).sort((a, b) => {
     // 1. Puntos (Partidos ganados)
     if (b.points !== a.points) return b.points - a.points
-    // 2. Diferencia de games (si se ingresaron marcadores)
-    if (b.gamesDiff !== a.gamesDiff) return b.gamesDiff - a.gamesDiff
-    // 3. Games a favor
-    if (b.gamesFor !== a.gamesFor) return b.gamesFor - a.gamesFor
-    // 4. Menos partidos jugados (mejor ratio)
+    // 2. Menos partidos jugados (mejor eficacia si empatan en puntos)
     if (a.played !== b.played) return a.played - b.played
+    // 3. Diferencia de games (si se ingresaron marcadores)
+    if (b.gamesDiff !== a.gamesDiff) return b.gamesDiff - a.gamesDiff
+    // 4. Games a favor
+    if (b.gamesFor !== a.gamesFor) return b.gamesFor - a.gamesFor
     // 5. Alfabético
     return a.playerName.localeCompare(b.playerName)
   })
@@ -85,7 +86,7 @@ function getTeammateCount(p1: string, p2: string, pastRounds: Round[]): number {
 }
 
 // Cuántas veces descansó un jugador
-function getByeCount(playerId: string, pastRounds: Round[]): number {
+export function getByeCount(playerId: string, pastRounds: Round[]): number {
   let count = 0
   for (const r of pastRounds) {
     if (r.byes.includes(playerId)) {
@@ -144,7 +145,7 @@ export function generateNextRound(tournament: Tournament): Round {
   let restingPlayerIds: string[] = []
 
   if (allPlayers.length <= activeNeeded) {
-    // Todos juegan o no hay suficientes para descansar
+    // Todos juegan a la vez
     if (pastRounds.length === 0) {
       // Ronda 1: Aleatoria
       const shuffled = [...allPlayers].sort(() => Math.random() - 0.5)
@@ -155,23 +156,27 @@ export function generateNextRound(tournament: Tournament): Round {
       activePlayerIds = standings.map((s) => s.playerId)
     }
   } else {
-    // Hay más jugadores que los lugares en cancha (algunos descansan)
+    // Hay más jugadores que lugares en cancha (rotación de descansos)
     if (pastRounds.length === 0) {
       const shuffled = [...allPlayers].sort(() => Math.random() - 0.5)
       activePlayerIds = shuffled.slice(0, activeNeeded).map((p) => p.id)
       restingPlayerIds = shuffled.slice(activeNeeded).map((p) => p.id)
     } else {
-      // Elegir quienes descansan: priorizar quienes descansaron MENOS veces
+      // Elegir quiénes descansan:
+      // 1. Quienes descansaron MENOS veces descansan primero
+      // 2. Si empatan en descansos, descansan los que MÁS partidos jugaron
+      // 3. Empates secundarios se resuelven con jitter aleatorio para no perjudicar a nadie
       const standings = calculateStandings(allPlayers, pastRounds)
-      const sortedByByes = [...standings].sort((a, b) => {
+      const sortedForByes = [...standings].sort((a, b) => {
         const byesA = getByeCount(a.playerId, pastRounds)
         const byesB = getByeCount(b.playerId, pastRounds)
-        if (byesA !== byesB) return byesA - byesB // descansaron menos primero para descansar ahora
-        // Si empatan en descansos, descansa el que más jugó
-        return b.played - a.played
+        if (byesA !== byesB) return byesA - byesB
+        if (b.played !== a.played) return b.played - a.played
+        return Math.random() - 0.5
       })
 
-      const resting = sortedByByes.slice(0, allPlayers.length - activeNeeded)
+      const restingCount = allPlayers.length - activeNeeded
+      const resting = sortedForByes.slice(0, restingCount)
       restingPlayerIds = resting.map((r) => r.playerId)
 
       // Los activos se ordenan por su posición/nivel en la tabla de standings

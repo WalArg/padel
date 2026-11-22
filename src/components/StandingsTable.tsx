@@ -7,6 +7,8 @@ interface Props {
 }
 
 export const StandingsTable: React.FC<Props> = ({ standings }) => {
+  const hasAnyByes = standings.some((s) => s.byes > 0)
+
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
       <div className="p-4 border-b border-slate-800 flex items-center justify-between">
@@ -28,6 +30,11 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
               <th className="py-3 px-2 text-center">PJ</th>
               <th className="py-3 px-3 text-center font-black text-lime-400">PTS (PG)</th>
               <th className="py-3 px-2 text-center">PP</th>
+              {hasAnyByes && (
+                <th className="py-3 px-2 text-center text-amber-400" title="Rondas de descanso">
+                  Desc
+                </th>
+              )}
               <th className="py-3 px-2 text-center hidden sm:table-cell">Dif Games</th>
               <th className="py-3 px-3 text-center hidden sm:table-cell">Racha</th>
             </tr>
@@ -85,6 +92,13 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
                   <td className="py-3.5 px-2 text-center text-xs text-slate-400">
                     {st.lost}
                   </td>
+
+                  {/* Descansos */}
+                  {hasAnyByes && (
+                    <td className="py-3.5 px-2 text-center text-xs text-amber-300 font-semibold">
+                      {st.byes}
+                    </td>
+                  )}
 
                   {/* Differential Games */}
                   <td className="py-3.5 px-2 text-center text-xs hidden sm:table-cell">

@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info } from 'lucide-react'
+import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus } from 'lucide-react'
 import type { Player, TournamentFormat } from '../types'
 
 interface Props {
@@ -10,7 +10,9 @@ const PRESET_NAMES = [
   'Martín', 'Santi', 'Nico', 'Lucas',
   'Gonza', 'Facu', 'Agus', 'Joaco',
   'Tomi', 'Mateo', 'Manu', 'Franco',
-  'Juani', 'Fede', 'Bauti', 'Leo'
+  'Juani', 'Fede', 'Bauti', 'Leo',
+  'Rodrigo', 'Maxi', 'Julián', 'Diego',
+  'Marcos', 'Emiliano', 'Esteban', 'Pablo'
 ]
 
 export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
@@ -26,13 +28,18 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
     { id: '6', name: 'Facu' },
     { id: '7', name: 'Agus' },
     { id: '8', name: 'Joaco' },
+    { id: '9', name: 'Tomi' },
+    { id: '10', name: 'Mateo' },
+    { id: '11', name: 'Manu' },
+    { id: '12', name: 'Franco' },
+    { id: '13', name: 'Juani' },
+    { id: '14', name: 'Fede' },
+    { id: '15', name: 'Bauti' },
+    { id: '16', name: 'Leo' },
   ])
 
-  // Custom or auto court count
-  const [customCourts, setCustomCourts] = useState<number | null>(null)
-
-  const recommendedCourts = Math.max(1, Math.floor(players.length / 4))
-  const courtsCount = customCourts ?? recommendedCourts
+  // Custom court count (default to 2 or 4 courts if 16 players)
+  const [courtsCount, setCourtsCount] = useState<number>(2)
 
   const handleAddPlayer = () => {
     const trimmed = newPlayerName.trim()
@@ -61,12 +68,18 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
       name,
     }))
     setPlayers(selected)
-    setCustomCourts(Math.floor(count / 4))
+    // Suggest courts: for 16, suggest 2 or 4; for 12, suggest 2 or 3; for 8, suggest 2
+    if (count === 16) {
+      setCourtsCount(2) // Default 2 courts for 16 is very common, or can change to 3/4
+    } else {
+      setCourtsCount(Math.max(1, Math.floor(count / 4)))
+    }
   }
 
   const activePlayersPerRound = courtsCount * 4
   const restingPlayersCount = Math.max(0, players.length - activePlayersPerRound)
-  const canStart = players.length >= 4 && players.length >= courtsCount * 4
+  const maxPossibleCourts = Math.floor(players.length / 4)
+  const canStart = players.length >= 4 && courtsCount >= 1 && players.length >= activePlayersPerRound
 
   return (
     <div className="max-w-xl mx-auto p-4 sm:p-6 space-y-6">
@@ -79,7 +92,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           Pádel
         </h1>
         <p className="text-sm text-slate-400 max-w-sm mx-auto">
-          Arma tu torneo al instante con amigos. Cruces por nivel donde solo sumas si ganas.
+          Arma tu torneo al instante. Cruces dinámicos por nivel con rotación de descansos.
         </p>
       </div>
 
@@ -120,7 +133,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-400">
-                Cruces dinámicos por nivel: los ganadores juegan con ganadores.
+                Cruces por nivel: los ganadores van a la Pista Central.
               </p>
             </button>
 
@@ -136,7 +149,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                 </span>
               </div>
               <p className="text-[11px] text-slate-500">
-                Todos contra todos con parejas fijas o rotadas.
+                Todos contra todos rotando parejas.
               </p>
             </button>
           </div>
@@ -150,7 +163,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
               Canchas Disponibles
             </label>
             <span className="text-xs text-slate-400">
-              {courtsCount} {courtsCount === 1 ? 'cancha' : 'canchas'} ({courtsCount * 4} lugares activos)
+              {courtsCount} {courtsCount === 1 ? 'cancha' : 'canchas'} ({courtsCount * 4} juegan a la vez)
             </span>
           </div>
 
@@ -159,7 +172,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
               <button
                 key={c}
                 type="button"
-                onClick={() => setCustomCourts(c)}
+                onClick={() => setCourtsCount(c)}
                 className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition ${
                   courtsCount === c
                     ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-md shadow-lime-400/20'
@@ -169,6 +182,24 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                 {c} {c === 1 ? 'Cancha' : 'Canchas'}
               </button>
             ))}
+
+            <div className="flex items-center gap-1 pl-1 border-l border-slate-800">
+              <button
+                type="button"
+                disabled={courtsCount <= 1}
+                onClick={() => setCourtsCount((prev) => Math.max(1, prev - 1))}
+                className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center disabled:opacity-30 disabled:cursor-not-allowed"
+              >
+                <Minus className="w-4 h-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setCourtsCount((prev) => prev + 1)}
+                className="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
 
@@ -182,13 +213,6 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
             <div className="flex gap-1.5 text-xs">
               <button
                 type="button"
-                onClick={() => loadPreset(4)}
-                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
-              >
-                4 jug.
-              </button>
-              <button
-                type="button"
                 onClick={() => loadPreset(8)}
                 className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
               >
@@ -200,6 +224,20 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                 className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
               >
                 12 jug.
+              </button>
+              <button
+                type="button"
+                onClick={() => loadPreset(16)}
+                className="px-2 py-1 bg-lime-400/20 text-lime-300 border border-lime-400/40 font-bold rounded-md transition"
+              >
+                16 jug.
+              </button>
+              <button
+                type="button"
+                onClick={() => loadPreset(20)}
+                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
+              >
+                20 jug.
               </button>
             </div>
           </div>
@@ -225,7 +263,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           </div>
 
           {/* Player badges list */}
-          <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-950/70 border border-slate-800/80 rounded-xl">
+          <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-2.5 bg-slate-950/70 border border-slate-800/80 rounded-xl">
             {players.length === 0 ? (
               <p className="text-xs text-slate-500 italic p-2">No hay participantes cargados todavía.</p>
             ) : (
@@ -248,30 +286,41 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
             )}
           </div>
 
-          {/* Info Status Box */}
-          <div className="text-xs p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
-            <div className="flex items-start gap-2 text-slate-300">
+          {/* Live Summary of Courts vs Players */}
+          <div className="text-xs p-3.5 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+            <div className="flex items-start gap-2.5 text-slate-300">
               <Info className="w-4 h-4 text-lime-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-white">
+              <div className="space-y-1">
+                <p className="font-bold text-white text-sm">
                   {players.length} participantes en {courtsCount} {courtsCount === 1 ? 'cancha' : 'canchas'}:
                 </p>
-                <p className="text-slate-400 mt-0.5">
-                  {restingPlayersCount === 0 ? (
-                    <span className="text-emerald-400 font-medium">
-                      ✓ Cantidad exacta: todos juegan en cada ronda simultáneamente.
-                    </span>
-                  ) : (
-                    <span>
-                      Juegan {activePlayersPerRound} por ronda y {restingPlayersCount} rotan/descansan equitativamente en cada turno.
-                    </span>
-                  )}
-                </p>
-                <p className="text-slate-400 mt-1">
-                  ⚡ <strong>Regla:</strong> Solo sumas si ganas (+1 punto). Si pierdes no sumas (0 pts). No hay empates.
+
+                {restingPlayersCount === 0 ? (
+                  <p className="text-emerald-400 font-medium">
+                    ✓ Todos juegan cada ronda simultáneamente ({activePlayersPerRound} en pista).
+                  </p>
+                ) : (
+                  <div className="space-y-1">
+                    <p className="text-amber-300 font-medium">
+                      • {activePlayersPerRound} juegan por ronda en las {courtsCount} canchas.
+                    </p>
+                    <p className="text-slate-300">
+                      • <strong className="text-white">{restingPlayersCount} descansan</strong> en cada ronda (el sistema los rota automáticamente para que todos jueguen la misma cantidad de partidos).
+                    </p>
+                  </div>
+                )}
+
+                <p className="text-slate-400 pt-1 text-[11px] border-t border-slate-800/80">
+                  ⚡ <strong>Puntuación:</strong> Solo sumas si ganas (+1 victoria/pt). Si pierdes no sumas (0 pts). Sin empates.
                 </p>
               </div>
             </div>
+
+            {players.length < activePlayersPerRound && (
+              <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs font-semibold">
+                ⚠️ Para {courtsCount} canchas necesitas al menos {activePlayersPerRound} participantes (tienes {players.length}). Reduce las canchas a {maxPossibleCourts || 1} o agrega más jugadores.
+              </div>
+            )}
           </div>
         </div>
 
@@ -287,7 +336,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           }`}
         >
           <Play className="w-5 h-5 fill-current" />
-          ¡Comenzar Torneo!
+          ¡Comenzar Torneo con {players.length} Jugadores!
         </button>
       </div>
     </div>
