@@ -2,9 +2,9 @@ import { useState, useEffect } from 'react'
 import type { Tournament, Player, TournamentFormat } from './types'
 import { TournamentSetup } from './components/TournamentSetup'
 import { TournamentView } from './components/TournamentView'
-import { generateNextRound } from './utils/tournament'
+import { generateInitialMatches } from './utils/tournament'
 
-const STORAGE_KEY = 'padel_app_tournament_v2'
+const STORAGE_KEY = 'padel_app_tournament_v3'
 
 export function App() {
   const [tournament, setTournament] = useState<Tournament | null>(() => {
@@ -43,15 +43,14 @@ export function App() {
       format,
       courtsCount,
       players,
-      rounds: [],
-      currentRoundIndex: 0,
+      matches: [],
       status: 'in_progress',
       createdAt: new Date().toISOString(),
     }
 
-    // Generate round 1
-    const firstRound = generateNextRound(initialTournament)
-    initialTournament.rounds = [firstRound]
+    // Generate initial matches for all courts
+    const initialMatches = generateInitialMatches(initialTournament)
+    initialTournament.matches = initialMatches
 
     setTournament(initialTournament)
   }

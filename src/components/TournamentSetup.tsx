@@ -1,45 +1,20 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus } from 'lucide-react'
+import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus, ClipboardPaste, X } from 'lucide-react'
 import type { Player, TournamentFormat } from '../types'
 
 interface Props {
   onStart: (name: string, format: TournamentFormat, courtsCount: number, players: Player[]) => void
 }
 
-const PRESET_NAMES = [
-  'Martín', 'Santi', 'Nico', 'Lucas',
-  'Gonza', 'Facu', 'Agus', 'Joaco',
-  'Tomi', 'Mateo', 'Manu', 'Franco',
-  'Juani', 'Fede', 'Bauti', 'Leo',
-  'Rodrigo', 'Maxi', 'Julián', 'Diego',
-  'Marcos', 'Emiliano', 'Esteban', 'Pablo'
-]
-
 export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
   const [tournamentName, setTournamentName] = useState('Torneo de Pádel')
-  const [format, setFormat] = useState<TournamentFormat>('mexicano')
+  const format: TournamentFormat = 'mexicano'
   const [newPlayerName, setNewPlayerName] = useState('')
-  const [players, setPlayers] = useState<Player[]>([
-    { id: '1', name: 'Martín' },
-    { id: '2', name: 'Santi' },
-    { id: '3', name: 'Nico' },
-    { id: '4', name: 'Lucas' },
-    { id: '5', name: 'Gonza' },
-    { id: '6', name: 'Facu' },
-    { id: '7', name: 'Agus' },
-    { id: '8', name: 'Joaco' },
-    { id: '9', name: 'Tomi' },
-    { id: '10', name: 'Mateo' },
-    { id: '11', name: 'Manu' },
-    { id: '12', name: 'Franco' },
-    { id: '13', name: 'Juani' },
-    { id: '14', name: 'Fede' },
-    { id: '15', name: 'Bauti' },
-    { id: '16', name: 'Leo' },
-  ])
-
-  // Custom court count (default to 2 or 4 courts if 16 players)
+  // No default names: user loads them manually or pastes list
+  const [players, setPlayers] = useState<Player[]>([])
   const [courtsCount, setCourtsCount] = useState<number>(2)
+  const [showPasteModal, setShowPasteModal] = useState(false)
+  const [pasteText, setPasteText] = useState('')
 
   const handleAddPlayer = () => {
     const trimmed = newPlayerName.trim()
@@ -62,23 +37,33 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
     setPlayers((prev) => prev.filter((p) => p.id !== id))
   }
 
-  const loadPreset = (count: number) => {
-    const selected = PRESET_NAMES.slice(0, count).map((name, i) => ({
-      id: `p-${i + 1}`,
+  const handleBulkPaste = () => {
+    if (!pasteText.trim()) return
+
+    // Clean lines, remove numbers like "1. ", "1 - ", emojis or bullet points
+    const lines = pasteText
+      .split(/[\n,]+/)
+      .map((line) => line.replace(/^[\s\d.-]+/, '').trim())
+      .filter((line) => line.length > 0)
+
+    const newPlayers: Player[] = lines.map((name, i) => ({
+      id: `p-${Date.now()}-${i}-${Math.random().toString(36).substring(2, 5)}`,
       name,
     }))
-    setPlayers(selected)
-    // Suggest courts: for 16, suggest 2 or 4; for 12, suggest 2 or 3; for 8, suggest 2
-    if (count === 16) {
-      setCourtsCount(2) // Default 2 courts for 16 is very common, or can change to 3/4
-    } else {
-      setCourtsCount(Math.max(1, Math.floor(count / 4)))
+
+    setPlayers((prev) => [...prev, ...newPlayers])
+    setPasteText('')
+    setShowPasteModal(false)
+
+    // Suggest courts if needed
+    const total = players.length + newPlayers.length
+    if (total >= 4) {
+      setCourtsCount(Math.max(1, Math.floor(total / 4)))
     }
   }
 
   const activePlayersPerRound = courtsCount * 4
   const restingPlayersCount = Math.max(0, players.length - activePlayersPerRound)
-  const maxPossibleCourts = Math.floor(players.length / 4)
   const canStart = players.length >= 4 && courtsCount >= 1 && players.length >= activePlayersPerRound
 
   return (
@@ -92,7 +77,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           Pádel
         </h1>
         <p className="text-sm text-slate-400 max-w-sm mx-auto">
-          Arma tu torneo al instante. Cruces dinámicos por nivel con rotación de descansos.
+          Arma los partidos de tu torneo en segundos. Cruces por nivel a 6 games y tie-break.
         </p>
       </div>
 
@@ -107,52 +92,8 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
             value={tournamentName}
             onChange={(e) => setTournamentName(e.target.value)}
             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent transition"
-            placeholder="Ej. Torneo Pádel Viernes"
+            placeholder="Ej. Torneo Pádel Amigos"
           />
-        </div>
-
-        {/* Format Selector */}
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-            Modalidad del Torneo
-          </label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setFormat('mexicano')}
-              className={`p-3 rounded-xl border text-left transition ${
-                format === 'mexicano'
-                  ? 'bg-lime-400/10 border-lime-400 text-white'
-                  : 'bg-slate-950 border-slate-800 text-slate-400'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-sm text-lime-400">Mexicano</span>
-                <span className="text-[10px] bg-lime-400 text-slate-950 font-black px-1.5 py-0.5 rounded">
-                  Activo
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400">
-                Cruces por nivel: los ganadores van a la Pista Central.
-              </p>
-            </button>
-
-            <button
-              type="button"
-              disabled
-              className="p-3 rounded-xl border border-slate-800/60 bg-slate-950/40 text-left opacity-60 cursor-not-allowed"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-bold text-sm text-slate-400">Americano</span>
-                <span className="text-[10px] bg-slate-800 text-slate-400 font-bold px-1.5 py-0.5 rounded">
-                  Próximamente
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Todos contra todos rotando parejas.
-              </p>
-            </button>
-          </div>
         </div>
 
         {/* Canchas (X Canchas) */}
@@ -203,43 +144,21 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           </div>
         </div>
 
-        {/* Players Section (X Participantes) */}
+        {/* Players Section */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-lime-400" />
               Participantes ({players.length})
             </label>
-            <div className="flex gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => loadPreset(8)}
-                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
-              >
-                8 jug.
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset(12)}
-                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
-              >
-                12 jug.
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset(16)}
-                className="px-2 py-1 bg-lime-400/20 text-lime-300 border border-lime-400/40 font-bold rounded-md transition"
-              >
-                16 jug.
-              </button>
-              <button
-                type="button"
-                onClick={() => loadPreset(20)}
-                className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-md transition"
-              >
-                20 jug.
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowPasteModal(true)}
+              className="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-lime-400 font-semibold rounded-lg flex items-center gap-1.5 transition"
+            >
+              <ClipboardPaste className="w-3.5 h-3.5" />
+              Pegar lista de WhatsApp
+            </button>
           </div>
 
           {/* Add input */}
@@ -249,7 +168,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
               value={newPlayerName}
               onChange={(e) => setNewPlayerName(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Nombre del amigo..."
+              placeholder="Escribe el nombre del jugador..."
               className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent text-sm"
             />
             <button
@@ -263,9 +182,11 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           </div>
 
           {/* Player badges list */}
-          <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-2.5 bg-slate-950/70 border border-slate-800/80 rounded-xl">
+          <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl min-h-[70px] items-center">
             {players.length === 0 ? (
-              <p className="text-xs text-slate-500 italic p-2">No hay participantes cargados todavía.</p>
+              <p className="text-xs text-slate-500 italic w-full text-center py-2">
+                No hay participantes cargados. Agrega los nombres arriba o presiona "Pegar lista de WhatsApp".
+              </p>
             ) : (
               players.map((player, index) => (
                 <div
@@ -273,7 +194,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                   className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 border border-slate-700/60 rounded-lg text-xs font-medium text-slate-200 group hover:border-slate-600 transition"
                 >
                   <span className="text-slate-500 text-[10px] font-bold">#{index + 1}</span>
-                  <span className="font-semibold">{player.name}</span>
+                  <span className="font-semibold text-white">{player.name}</span>
                   <button
                     type="button"
                     onClick={() => handleRemovePlayer(player.id)}
@@ -295,32 +216,34 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                   {players.length} participantes en {courtsCount} {courtsCount === 1 ? 'cancha' : 'canchas'}:
                 </p>
 
-                {restingPlayersCount === 0 ? (
-                  <p className="text-emerald-400 font-medium">
-                    ✓ Todos juegan cada ronda simultáneamente ({activePlayersPerRound} en pista).
-                  </p>
+                {players.length >= activePlayersPerRound ? (
+                  restingPlayersCount === 0 ? (
+                    <p className="text-emerald-400 font-medium">
+                      ✓ Todos juegan cada ronda en simultáneo ({activePlayersPerRound} en pista).
+                    </p>
+                  ) : (
+                    <div className="space-y-1 text-slate-300">
+                      <p>
+                        • <strong className="text-white">{activePlayersPerRound} juegan</strong> en las {courtsCount} canchas.
+                      </p>
+                      <p>
+                        • <strong className="text-amber-300">{restingPlayersCount} descansan</strong> por turno (rotación equitativa para que nadie juegue de más).
+                      </p>
+                    </div>
+                  )
                 ) : (
-                  <div className="space-y-1">
-                    <p className="text-amber-300 font-medium">
-                      • {activePlayersPerRound} juegan por ronda en las {courtsCount} canchas.
-                    </p>
-                    <p className="text-slate-300">
-                      • <strong className="text-white">{restingPlayersCount} descansan</strong> en cada ronda (el sistema los rota automáticamente para que todos jueguen la misma cantidad de partidos).
-                    </p>
-                  </div>
+                  <p className="text-slate-500">
+                    Carga al menos {activePlayersPerRound} jugadores para comenzar en {courtsCount} canchas.
+                  </p>
                 )}
 
-                <p className="text-slate-400 pt-1 text-[11px] border-t border-slate-800/80">
-                  ⚡ <strong>Puntuación:</strong> Solo sumas si ganas (+1 victoria/pt). Si pierdes no sumas (0 pts). Sin empates.
-                </p>
+                <div className="pt-1.5 text-[11px] text-slate-400 border-t border-slate-800/80 flex flex-wrap gap-x-3 gap-y-1">
+                  <span>🎾 Games a 6 (Tie-Break en 6-6)</span>
+                  <span>🏆 Victoria: +3 pts</span>
+                  <span>❌ Derrota: 0 pts</span>
+                </div>
               </div>
             </div>
-
-            {players.length < activePlayersPerRound && (
-              <div className="p-2 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-xs font-semibold">
-                ⚠️ Para {courtsCount} canchas necesitas al menos {activePlayersPerRound} participantes (tienes {players.length}). Reduce las canchas a {maxPossibleCourts || 1} o agrega más jugadores.
-              </div>
-            )}
           </div>
         </div>
 
@@ -336,9 +259,59 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           }`}
         >
           <Play className="w-5 h-5 fill-current" />
-          ¡Comenzar Torneo con {players.length} Jugadores!
+          ¡Comenzar Torneo ({players.length} Jugadores)!
         </button>
       </div>
+
+      {/* Bulk Paste Modal */}
+      {showPasteModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-white text-base flex items-center gap-2">
+                <ClipboardPaste className="w-4 h-4 text-lime-400" />
+                Pegar lista de participantes
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowPasteModal(false)}
+                className="text-slate-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-400">
+              Pega la lista del grupo de WhatsApp (un nombre por línea o separados por coma):
+            </p>
+
+            <textarea
+              rows={8}
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              placeholder="1. Walter&#10;2. Martín&#10;3. Santi&#10;4. Lucas&#10;..."
+              className="w-full p-3 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-lime-400"
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowPasteModal(false)}
+                className="flex-1 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleBulkPaste}
+                className="flex-1 py-2.5 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-xl text-xs"
+              >
+                Cargar Nombres
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

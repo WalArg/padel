@@ -7,7 +7,7 @@ interface Props {
 }
 
 export const StandingsTable: React.FC<Props> = ({ standings }) => {
-  const hasAnyByes = standings.some((s) => s.byes > 0)
+  const hasAnyTiebreak = standings.some((s) => s.tiebreaksWon > 0)
 
   return (
     <div className="bg-slate-900/90 border border-slate-800 rounded-2xl overflow-hidden shadow-xl">
@@ -27,15 +27,17 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
             <tr>
               <th className="py-3 px-3 text-center w-12">Pos</th>
               <th className="py-3 px-3">Jugador</th>
+              <th className="py-3 px-3 text-center font-black text-lime-400">PTS</th>
               <th className="py-3 px-2 text-center">PJ</th>
-              <th className="py-3 px-3 text-center font-black text-lime-400">PTS (PG)</th>
-              <th className="py-3 px-2 text-center">PP</th>
-              {hasAnyByes && (
-                <th className="py-3 px-2 text-center text-amber-400" title="Rondas de descanso">
-                  Desc
+              <th className="py-3 px-2 text-center text-emerald-400">PG</th>
+              <th className="py-3 px-2 text-center text-slate-500">PP</th>
+              <th className="py-3 px-2 text-center">GF/GC</th>
+              <th className="py-3 px-2 text-center font-semibold">DIF</th>
+              {hasAnyTiebreak && (
+                <th className="py-3 px-2 text-center text-amber-400" title="Tie-Breaks ganados">
+                  TB
                 </th>
               )}
-              <th className="py-3 px-2 text-center hidden sm:table-cell">Dif Games</th>
               <th className="py-3 px-3 text-center hidden sm:table-cell">Racha</th>
             </tr>
           </thead>
@@ -71,39 +73,42 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
 
                   {/* Player Name */}
                   <td className="py-3.5 px-3">
-                    <span className="font-bold text-white block truncate max-w-[140px] sm:max-w-none">
+                    <span className="font-bold text-white block truncate max-w-[130px] sm:max-w-none">
                       {st.playerName}
                     </span>
                   </td>
 
-                  {/* PJ */}
-                  <td className="py-3.5 px-2 text-center text-slate-400 text-xs">
-                    {st.played}
-                  </td>
-
-                  {/* Points (PTS) = PG */}
+                  {/* Points (PTS) = 3 pts por victoria */}
                   <td className="py-3.5 px-3 text-center">
                     <span className="font-black text-lime-400 text-base">
                       {st.points}
                     </span>
                   </td>
 
-                  {/* PP (Perdidos = 0 pts) */}
-                  <td className="py-3.5 px-2 text-center text-xs text-slate-400">
+                  {/* PJ */}
+                  <td className="py-3.5 px-2 text-center text-slate-400 text-xs font-semibold">
+                    {st.played}
+                  </td>
+
+                  {/* PG */}
+                  <td className="py-3.5 px-2 text-center text-xs text-emerald-400 font-bold">
+                    {st.won}
+                  </td>
+
+                  {/* PP */}
+                  <td className="py-3.5 px-2 text-center text-xs text-slate-500">
                     {st.lost}
                   </td>
 
-                  {/* Descansos */}
-                  {hasAnyByes && (
-                    <td className="py-3.5 px-2 text-center text-xs text-amber-300 font-semibold">
-                      {st.byes}
-                    </td>
-                  )}
+                  {/* GF / GC */}
+                  <td className="py-3.5 px-2 text-center text-xs text-slate-300">
+                    {st.gamesFor}-{st.gamesAgainst}
+                  </td>
 
                   {/* Differential Games */}
-                  <td className="py-3.5 px-2 text-center text-xs hidden sm:table-cell">
+                  <td className="py-3.5 px-2 text-center text-xs">
                     <span
-                      className={`font-semibold ${
+                      className={`font-bold ${
                         st.gamesDiff > 0
                           ? 'text-emerald-400'
                           : st.gamesDiff < 0
@@ -114,6 +119,13 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
                       {st.gamesDiff > 0 ? `+${st.gamesDiff}` : st.gamesDiff}
                     </span>
                   </td>
+
+                  {/* Tie-breaks */}
+                  {hasAnyTiebreak && (
+                    <td className="py-3.5 px-2 text-center text-xs text-amber-400 font-bold">
+                      {st.tiebreaksWon > 0 ? st.tiebreaksWon : '-'}
+                    </td>
+                  )}
 
                   {/* Form History */}
                   <td className="py-3.5 px-3 text-center hidden sm:table-cell">
@@ -143,8 +155,10 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
         </table>
       </div>
 
-      <div className="p-3 bg-slate-950/70 border-t border-slate-800 text-center text-[11px] text-slate-500">
-        💡 Solo suma si ganas (+1 punto). Si pierdes no sumas (0 pts). No hay empates.
+      <div className="p-3 bg-slate-950/70 border-t border-slate-800 text-center text-[11px] text-slate-400 flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
+        <span>🏆 <strong>Victoria:</strong> +3 pts</span>
+        <span>❌ <strong>Derrota:</strong> 0 pts</span>
+        <span>🎾 Games a 6 (Tie-Break en 6-6)</span>
       </div>
     </div>
   )

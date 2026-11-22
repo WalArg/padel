@@ -7,20 +7,18 @@ export interface Player {
 
 export interface Match {
   id: string
+  matchNumber: number
   courtNumber: number
   team1: [string, string] // player IDs
   team2: [string, string] // player IDs
-  winner: 'team1' | 'team2' | null // No empates
-  score1: number | null // optional games / score
-  score2: number | null
+  score1: number | null // Games pareja 1 (ej: 6)
+  score2: number | null // Games pareja 2 (ej: 4)
+  tiebreak1: number | null // Puntos de tiebreak si quedaron 6-6 (ej: 7)
+  tiebreak2: number | null // Puntos de tiebreak si quedaron 6-6 (ej: 5)
+  isTiebreak: boolean
+  winner: 'team1' | 'team2' | null
   completed: boolean
-}
-
-export interface Round {
-  roundNumber: number
-  matches: Match[]
-  byes: string[] // player IDs resting this round
-  completed: boolean
+  createdAt: string
 }
 
 export type TournamentStatus = 'setup' | 'in_progress' | 'finished'
@@ -31,8 +29,7 @@ export interface Tournament {
   format: TournamentFormat
   courtsCount: number // X canchas
   players: Player[]
-  rounds: Round[]
-  currentRoundIndex: number
+  matches: Match[]
   status: TournamentStatus
   createdAt: string
 }
@@ -41,12 +38,12 @@ export interface PlayerStats {
   playerId: string
   playerName: string
   played: number
-  won: number // Puntos principales: 1 victoria = 1 punto
-  lost: number // 0 puntos si pierde
-  points: number // Total puntos (igual a won)
-  byes: number // Cantidad de rondas que descansó
+  won: number
+  lost: number
+  points: number // 3 puntos por victoria, 0 si pierde
   gamesFor: number
   gamesAgainst: number
   gamesDiff: number
+  tiebreaksWon: number
   history: ('W' | 'L')[]
 }
