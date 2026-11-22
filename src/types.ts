@@ -1,3 +1,5 @@
+export type TournamentFormat = 'mexicano' | 'americano'
+
 export interface Player {
   id: string
   name: string
@@ -8,7 +10,8 @@ export interface Match {
   courtNumber: number
   team1: [string, string] // player IDs
   team2: [string, string] // player IDs
-  score1: number | null
+  winner: 'team1' | 'team2' | null // No empates
+  score1: number | null // optional games / score
   score2: number | null
   completed: boolean
 }
@@ -25,7 +28,8 @@ export type TournamentStatus = 'setup' | 'in_progress' | 'finished'
 export interface Tournament {
   id: string
   name: string
-  pointsPerMatch: number // e.g., 24 or 32
+  format: TournamentFormat
+  courtsCount: number // X canchas
   players: Player[]
   rounds: Round[]
   currentRoundIndex: number
@@ -37,11 +41,11 @@ export interface PlayerStats {
   playerId: string
   playerName: string
   played: number
-  won: number
-  drawn: number
-  lost: number
-  pointsFor: number
-  pointsAgainst: number
-  difference: number
-  history: ('W' | 'D' | 'L')[]
+  won: number // Puntos principales: 1 victoria = 1 punto
+  lost: number // 0 puntos si pierde
+  points: number // Total puntos (igual a won)
+  gamesFor: number
+  gamesAgainst: number
+  gamesDiff: number
+  history: ('W' | 'L')[]
 }

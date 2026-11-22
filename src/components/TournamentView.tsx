@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { Tournament } from '../types'
-import { calculateStandings, formatWhatsAppSummary, generateNextRound } from '../utils/mexicano'
+import { calculateStandings, formatWhatsAppSummary, generateNextRound } from '../utils/tournament'
 import { MatchCard } from './MatchCard'
 import { StandingsTable } from './StandingsTable'
 import confetti from 'canvas-confetti'
@@ -35,12 +35,11 @@ export const TournamentView: React.FC<Props> = ({
   const playersMap = new Map(tournament.players.map((p) => [p.id, p]))
 
   const allMatchesFinished =
-    currentRound?.matches.every(
-      (m) => m.completed && m.score1 !== null && m.score2 !== null
-    ) ?? false
+    currentRound?.matches.every((m) => m.completed && m.winner !== null) ?? false
 
   const handleUpdateScore = (
     matchId: string,
+    winner: 'team1' | 'team2' | null,
     score1: number | null,
     score2: number | null,
     completed: boolean
@@ -51,12 +50,13 @@ export const TournamentView: React.FC<Props> = ({
         if (m.id !== matchId) return m
         return {
           ...m,
+          winner,
           score1,
           score2,
           completed,
         }
       })
-      const isRoundDone = updatedMatches.every((m) => m.completed)
+      const isRoundDone = updatedMatches.every((m) => m.completed && m.winner !== null)
       return {
         ...r,
         matches: updatedMatches,
@@ -72,7 +72,7 @@ export const TournamentView: React.FC<Props> = ({
 
   const handleNextRound = () => {
     if (!allMatchesFinished) {
-      if (!window.confirm('Hay partidos sin completar en esta ronda. ¿Deseas avanzar igual?')) {
+      if (!window.confirm('Hay partidos sin definir ganador en esta ronda. ¿Deseas avanzar igual?')) {
         return
       }
     }
@@ -92,8 +92,8 @@ export const TournamentView: React.FC<Props> = ({
 
   const handleFinishTournament = () => {
     confetti({
-      particleCount: 120,
-      spread: 70,
+      particleCount: 130,
+      spread: 75,
       origin: { y: 0.6 },
     })
     onUpdateTournament({
@@ -115,10 +115,15 @@ export const TournamentView: React.FC<Props> = ({
       {/* Top Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 rounded-2xl p-4 shadow-xl">
         <div>
-          <span className="text-[11px] font-bold uppercase tracking-wider text-lime-400 flex items-center gap-1.5">
-            <Trophy className="w-3.5 h-3.5" />
-            Torneo Mexicano
-          </span>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xs font-black uppercase tracking-wider text-lime-400 flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5" />
+              Pádel
+            </span>
+            <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
+              Mexicano • Por Nivel
+            </span>
+          </div>
           <h1 className="text-xl font-black text-white">{tournament.name}</h1>
         </div>
 
@@ -126,7 +131,7 @@ export const TournamentView: React.FC<Props> = ({
           <button
             type="button"
             onClick={handleShareWhatsApp}
-            className="flex-1 sm:flex-initial px-3 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition"
+            className="flex-1 sm:flex-initial px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition"
           >
             <Share2 className="w-4 h-4" />
             WhatsApp
@@ -134,7 +139,7 @@ export const TournamentView: React.FC<Props> = ({
           <button
             type="button"
             onClick={() => {
-              if (window.confirm('¿Reiniciar torneo? Se perderán los datos actuales.')) {
+              if (window.confirm('¿Reiniciar torneo? Se borrarán los cruces actuales.')) {
                 onReset()
               }
             }}
@@ -223,6 +228,18 @@ export const TournamentView: React.FC<Props> = ({
             </div>
           )}
 
+          {/* Dynamic Level Matchmaking Info Note */}
+          <div className="bg-slate-900/40 border border-slate-800/60 rounded-xl px-3 py-2 text-[11px] text-slate-400 flex items-center justify-between">
+            <span>
+              {viewRoundIndex === 0 ? (
+                <>🎲 <strong>Ronda 1:</strong> Cruces iniciales sorteados.</>
+              ) : (
+                <>⚡ <strong>Ronda {viewRoundIndex + 1}:</strong> Cruces organizados por nivel actual según la tabla.</>
+              )}
+            </span>
+            <span className="text-lime-400 font-semibold">Toca la pareja ganadora</span>
+          </div>
+
           {/* Match Cards */}
           <div className="space-y-4">
             {currentRound?.matches.map((match) => (
@@ -230,7 +247,6 @@ export const TournamentView: React.FC<Props> = ({
                 key={match.id}
                 match={match}
                 playersMap={playersMap}
-                pointsPerMatch={tournament.pointsPerMatch}
                 onUpdateScore={handleUpdateScore}
               />
             ))}
@@ -245,7 +261,7 @@ export const TournamentView: React.FC<Props> = ({
                 className="w-full py-4 rounded-xl font-black text-sm bg-gradient-to-r from-lime-400 to-emerald-400 text-slate-950 hover:brightness-110 shadow-lg shadow-lime-400/20 flex items-center justify-center gap-2 transition"
               >
                 <PlusCircle className="w-5 h-5" />
-                Generar Siguiente Ronda (Estilo Mexicano)
+                Generar Siguiente Ronda (Por Nivel)
               </button>
 
               <button
@@ -293,7 +309,7 @@ export const TournamentView: React.FC<Props> = ({
                 {winner?.playerName}
               </h2>
               <p className="text-sm text-lime-400 font-bold mt-1">
-                {winner?.pointsFor} puntos totales ({winner?.won} victorias)
+                {winner?.points} {winner?.points === 1 ? 'partido ganado' : 'partidos ganados'} ({winner?.points} pts)
               </p>
             </div>
 

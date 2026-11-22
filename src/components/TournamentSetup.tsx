@@ -1,9 +1,9 @@
 import React, { useState } from 'react'
-import { Plus, Trash2, Users, Trophy, Play } from 'lucide-react'
-import type { Player } from '../types'
+import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info } from 'lucide-react'
+import type { Player, TournamentFormat } from '../types'
 
 interface Props {
-  onStart: (name: string, players: Player[], pointsPerMatch: number) => void
+  onStart: (name: string, format: TournamentFormat, courtsCount: number, players: Player[]) => void
 }
 
 const PRESET_NAMES = [
@@ -14,19 +14,25 @@ const PRESET_NAMES = [
 ]
 
 export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
-  const [tournamentName, setTournamentName] = useState('Torneo Mexicano de Pádel')
-  const [pointsPerMatch, setPointsPerMatch] = useState<number>(24)
+  const [tournamentName, setTournamentName] = useState('Torneo de Pádel')
+  const [format, setFormat] = useState<TournamentFormat>('mexicano')
   const [newPlayerName, setNewPlayerName] = useState('')
   const [players, setPlayers] = useState<Player[]>([
-    { id: '1', name: 'Jugador 1' },
-    { id: '2', name: 'Jugador 2' },
-    { id: '3', name: 'Jugador 3' },
-    { id: '4', name: 'Jugador 4' },
-    { id: '5', name: 'Jugador 5' },
-    { id: '6', name: 'Jugador 6' },
-    { id: '7', name: 'Jugador 7' },
-    { id: '8', name: 'Jugador 8' },
+    { id: '1', name: 'Martín' },
+    { id: '2', name: 'Santi' },
+    { id: '3', name: 'Nico' },
+    { id: '4', name: 'Lucas' },
+    { id: '5', name: 'Gonza' },
+    { id: '6', name: 'Facu' },
+    { id: '7', name: 'Agus' },
+    { id: '8', name: 'Joaco' },
   ])
+
+  // Custom or auto court count
+  const [customCourts, setCustomCourts] = useState<number | null>(null)
+
+  const recommendedCourts = Math.max(1, Math.floor(players.length / 4))
+  const courtsCount = customCourts ?? recommendedCourts
 
   const handleAddPlayer = () => {
     const trimmed = newPlayerName.trim()
@@ -55,11 +61,12 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
       name,
     }))
     setPlayers(selected)
+    setCustomCourts(Math.floor(count / 4))
   }
 
-  const courtsCount = Math.floor(players.length / 4)
-  const remainder = players.length % 4
-  const canStart = players.length >= 4
+  const activePlayersPerRound = courtsCount * 4
+  const restingPlayersCount = Math.max(0, players.length - activePlayersPerRound)
+  const canStart = players.length >= 4 && players.length >= courtsCount * 4
 
   return (
     <div className="max-w-xl mx-auto p-4 sm:p-6 space-y-6">
@@ -68,11 +75,11 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-tr from-lime-500 to-emerald-400 text-slate-950 shadow-lg shadow-lime-500/20 mb-2">
           <Trophy className="w-8 h-8" />
         </div>
-        <h1 className="text-3xl font-extrabold tracking-tight text-white">
-          Pádel <span className="text-lime-400">Mexicano</span>
+        <h1 className="text-4xl font-black tracking-tight text-white">
+          Pádel
         </h1>
         <p className="text-sm text-slate-400 max-w-sm mx-auto">
-          Arma los cruces de tu torneo al instante. En cada ronda juegan los mejores con los mejores.
+          Arma tu torneo al instante con amigos. Cruces por nivel donde solo sumas si ganas.
         </p>
       </div>
 
@@ -87,42 +94,90 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
             value={tournamentName}
             onChange={(e) => setTournamentName(e.target.value)}
             className="w-full px-4 py-3 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent transition"
-            placeholder="Ej. Torneo Viernes de Pádel"
+            placeholder="Ej. Torneo Pádel Viernes"
           />
         </div>
 
-        {/* Points per match */}
+        {/* Format Selector */}
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">
-            Puntos por Partido (Total)
+            Modalidad del Torneo
           </label>
-          <div className="grid grid-cols-3 gap-2">
-            {[24, 32, 16].map((pts) => (
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setFormat('mexicano')}
+              className={`p-3 rounded-xl border text-left transition ${
+                format === 'mexicano'
+                  ? 'bg-lime-400/10 border-lime-400 text-white'
+                  : 'bg-slate-950 border-slate-800 text-slate-400'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-sm text-lime-400">Mexicano</span>
+                <span className="text-[10px] bg-lime-400 text-slate-950 font-black px-1.5 py-0.5 rounded">
+                  Activo
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Cruces dinámicos por nivel: los ganadores juegan con ganadores.
+              </p>
+            </button>
+
+            <button
+              type="button"
+              disabled
+              className="p-3 rounded-xl border border-slate-800/60 bg-slate-950/40 text-left opacity-60 cursor-not-allowed"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="font-bold text-sm text-slate-400">Americano</span>
+                <span className="text-[10px] bg-slate-800 text-slate-400 font-bold px-1.5 py-0.5 rounded">
+                  Próximamente
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-500">
+                Todos contra todos con parejas fijas o rotadas.
+              </p>
+            </button>
+          </div>
+        </div>
+
+        {/* Canchas (X Canchas) */}
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+              <LayoutGrid className="w-4 h-4 text-lime-400" />
+              Canchas Disponibles
+            </label>
+            <span className="text-xs text-slate-400">
+              {courtsCount} {courtsCount === 1 ? 'cancha' : 'canchas'} ({courtsCount * 4} lugares activos)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {[1, 2, 3, 4].map((c) => (
               <button
-                key={pts}
+                key={c}
                 type="button"
-                onClick={() => setPointsPerMatch(pts)}
-                className={`py-2.5 px-3 rounded-xl font-bold text-sm transition border ${
-                  pointsPerMatch === pts
+                onClick={() => setCustomCourts(c)}
+                className={`flex-1 py-2.5 rounded-xl font-bold text-sm border transition ${
+                  courtsCount === c
                     ? 'bg-lime-400 text-slate-950 border-lime-400 shadow-md shadow-lime-400/20'
                     : 'bg-slate-950 text-slate-300 border-slate-800 hover:border-slate-700'
                 }`}
               >
-                {pts} puntos
+                {c} {c === 1 ? 'Cancha' : 'Canchas'}
               </button>
             ))}
           </div>
-          <p className="text-xs text-slate-500 mt-1.5">
-            El sistema clásico mexicano se juega a {pointsPerMatch} puntos totales por partido (ej. 14 a 10).
-          </p>
         </div>
 
-        {/* Players Section */}
+        {/* Players Section (X Participantes) */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
               <Users className="w-4 h-4 text-lime-400" />
-              Jugadores ({players.length})
+              Participantes ({players.length})
             </label>
             <div className="flex gap-1.5 text-xs">
               <button
@@ -156,7 +211,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
               value={newPlayerName}
               onChange={(e) => setNewPlayerName(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Nombre del jugador..."
+              placeholder="Nombre del amigo..."
               className="flex-1 px-4 py-2.5 bg-slate-950 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-transparent text-sm"
             />
             <button
@@ -170,9 +225,9 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           </div>
 
           {/* Player badges list */}
-          <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-2 bg-slate-950/70 border border-slate-800/80 rounded-xl">
+          <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 bg-slate-950/70 border border-slate-800/80 rounded-xl">
             {players.length === 0 ? (
-              <p className="text-xs text-slate-500 italic p-2">No hay jugadores cargados todavía.</p>
+              <p className="text-xs text-slate-500 italic p-2">No hay participantes cargados todavía.</p>
             ) : (
               players.map((player, index) => (
                 <div
@@ -193,16 +248,30 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
             )}
           </div>
 
-          {/* Pistas info badge */}
-          <div className="text-xs px-3 py-2.5 bg-slate-950/80 rounded-xl border border-slate-800 flex items-center justify-between">
-            <span className="text-slate-400">
-              Pistas simultáneas: <strong className="text-white">{courtsCount}</strong> ({courtsCount * 4} jugadores activos)
-            </span>
-            {remainder > 0 && (
-              <span className="text-amber-400 font-medium">
-                {remainder} {remainder === 1 ? 'jugador rota/descansa' : 'jugadores rotan/descansan'}
-              </span>
-            )}
+          {/* Info Status Box */}
+          <div className="text-xs p-3 bg-slate-950 rounded-xl border border-slate-800 space-y-1.5">
+            <div className="flex items-start gap-2 text-slate-300">
+              <Info className="w-4 h-4 text-lime-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-white">
+                  {players.length} participantes en {courtsCount} {courtsCount === 1 ? 'cancha' : 'canchas'}:
+                </p>
+                <p className="text-slate-400 mt-0.5">
+                  {restingPlayersCount === 0 ? (
+                    <span className="text-emerald-400 font-medium">
+                      ✓ Cantidad exacta: todos juegan en cada ronda simultáneamente.
+                    </span>
+                  ) : (
+                    <span>
+                      Juegan {activePlayersPerRound} por ronda y {restingPlayersCount} rotan/descansan equitativamente en cada turno.
+                    </span>
+                  )}
+                </p>
+                <p className="text-slate-400 mt-1">
+                  ⚡ <strong>Regla:</strong> Solo sumas si ganas (+1 punto). Si pierdes no sumas (0 pts). No hay empates.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -210,7 +279,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
         <button
           type="button"
           disabled={!canStart}
-          onClick={() => onStart(tournamentName, players, pointsPerMatch)}
+          onClick={() => onStart(tournamentName, format, courtsCount, players)}
           className={`w-full py-4 rounded-xl font-black text-base flex items-center justify-center gap-2 shadow-lg transition ${
             canStart
               ? 'bg-gradient-to-r from-lime-400 to-emerald-400 text-slate-950 hover:brightness-110 shadow-lime-400/20 cursor-pointer'

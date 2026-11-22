@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import type { Tournament, Player } from './types'
+import type { Tournament, Player, TournamentFormat } from './types'
 import { TournamentSetup } from './components/TournamentSetup'
 import { TournamentView } from './components/TournamentView'
-import { generateNextRound } from './utils/mexicano'
+import { generateNextRound } from './utils/tournament'
 
-const STORAGE_KEY = 'padel_mexicano_tournament_v1'
+const STORAGE_KEY = 'padel_app_tournament_v2'
 
 export function App() {
   const [tournament, setTournament] = useState<Tournament | null>(() => {
@@ -33,13 +33,15 @@ export function App() {
 
   const handleStartTournament = (
     name: string,
-    players: Player[],
-    pointsPerMatch: number
+    format: TournamentFormat,
+    courtsCount: number,
+    players: Player[]
   ) => {
     const initialTournament: Tournament = {
       id: `tourney-${Date.now()}`,
       name,
-      pointsPerMatch,
+      format,
+      courtsCount,
       players,
       rounds: [],
       currentRoundIndex: 0,
@@ -73,7 +75,7 @@ export function App() {
       </main>
 
       <footer className="py-4 text-center text-xs text-slate-600 border-t border-slate-900">
-        Pádel Mexicano • Listo para jugar con amigos
+        Pádel • Listo para jugar con amigos
       </footer>
     </div>
   )

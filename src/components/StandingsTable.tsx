@@ -15,7 +15,7 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
           <h2 className="font-bold text-white text-base">Tabla de Posiciones</h2>
         </div>
         <span className="text-xs text-slate-400 font-medium">
-          {standings.length} jugadores
+          {standings.length} participantes
         </span>
       </div>
 
@@ -26,15 +26,15 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
               <th className="py-3 px-3 text-center w-12">Pos</th>
               <th className="py-3 px-3">Jugador</th>
               <th className="py-3 px-2 text-center">PJ</th>
-              <th className="py-3 px-3 text-center font-bold text-lime-400">PTS</th>
-              <th className="py-3 px-2 text-center">DIF</th>
-              <th className="py-3 px-2 text-center hidden sm:table-cell">G/E/P</th>
+              <th className="py-3 px-3 text-center font-black text-lime-400">PTS (PG)</th>
+              <th className="py-3 px-2 text-center">PP</th>
+              <th className="py-3 px-2 text-center hidden sm:table-cell">Dif Games</th>
               <th className="py-3 px-3 text-center hidden sm:table-cell">Racha</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium">
             {standings.map((st, idx) => {
-              const isFirst = idx === 0 && st.pointsFor > 0
+              const isFirst = idx === 0 && st.points > 0
 
               return (
                 <tr
@@ -74,31 +74,31 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
                     {st.played}
                   </td>
 
-                  {/* Points (PTS) */}
+                  {/* Points (PTS) = PG */}
                   <td className="py-3.5 px-3 text-center">
                     <span className="font-black text-lime-400 text-base">
-                      {st.pointsFor}
+                      {st.points}
                     </span>
                   </td>
 
-                  {/* Differential */}
-                  <td className="py-3.5 px-2 text-center text-xs">
+                  {/* PP (Perdidos = 0 pts) */}
+                  <td className="py-3.5 px-2 text-center text-xs text-slate-400">
+                    {st.lost}
+                  </td>
+
+                  {/* Differential Games */}
+                  <td className="py-3.5 px-2 text-center text-xs hidden sm:table-cell">
                     <span
                       className={`font-semibold ${
-                        st.difference > 0
+                        st.gamesDiff > 0
                           ? 'text-emerald-400'
-                          : st.difference < 0
+                          : st.gamesDiff < 0
                           ? 'text-red-400'
                           : 'text-slate-400'
                       }`}
                     >
-                      {st.difference > 0 ? `+${st.difference}` : st.difference}
+                      {st.gamesDiff > 0 ? `+${st.gamesDiff}` : st.gamesDiff}
                     </span>
-                  </td>
-
-                  {/* G/E/P */}
-                  <td className="py-3.5 px-2 text-center text-xs text-slate-400 hidden sm:table-cell">
-                    {st.won}/{st.drawn}/{st.lost}
                   </td>
 
                   {/* Form History */}
@@ -113,8 +113,6 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
                             className={`w-4 h-4 rounded-full text-[9px] font-black flex items-center justify-center ${
                               h === 'W'
                                 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
-                                : h === 'D'
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                                 : 'bg-red-500/20 text-red-400 border border-red-500/40'
                             }`}
                           >
@@ -129,6 +127,10 @@ export const StandingsTable: React.FC<Props> = ({ standings }) => {
             })}
           </tbody>
         </table>
+      </div>
+
+      <div className="p-3 bg-slate-950/70 border-t border-slate-800 text-center text-[11px] text-slate-500">
+        💡 Solo suma si ganas (+1 punto). Si pierdes no sumas (0 pts). No hay empates.
       </div>
     </div>
   )
