@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Match, Player } from '../types'
-import { Trophy, Flame, CheckCircle2, Zap } from 'lucide-react'
+import { Trophy, Flame, CheckCircle2, Zap, Edit3 } from 'lucide-react'
 
 interface Props {
   match: Match
@@ -23,46 +23,53 @@ export const MatchCard: React.FC<Props> = ({
   const isCourtOne = match.courtNumber === 1
 
   const isTiebreak = match.isTiebreak || (score1 === 6 && score2 === 6)
-  const isTeam1Winner = match.winner === 'team1'
-  const isTeam2Winner = match.winner === 'team2'
 
+  // Determine potential winner based on games
+  let potentialWinner: 'team1' | 'team2' | null = match.winner
+  if (score1 >= 6 && score1 - score2 >= 2) {
+    potentialWinner = 'team1'
+  } else if (score2 >= 6 && score2 - score1 >= 2) {
+    potentialWinner = 'team2'
+  } else if (score1 === 7 && score2 === 6) {
+    potentialWinner = 'team1'
+  } else if (score2 === 7 && score1 === 6) {
+    potentialWinner = 'team2'
+  }
+
+  const isTeam1Winner = match.winner === 'team1' || (!match.completed && potentialWinner === 'team1')
+  const isTeam2Winner = match.winner === 'team2' || (!match.completed && potentialWinner === 'team2')
+
+  // Change games without automatically closing/completing the match!
   const handleSetGames = (team: 'team1' | 'team2', games: number) => {
-    let next1 = team === 'team1' ? games : score1
-    let next2 = team === 'team2' ? games : score2
+    const next1 = team === 'team1' ? games : score1
+    const next2 = team === 'team2' ? games : score2
 
     let autoWinner: 'team1' | 'team2' | null = null
-    let autoCompleted = false
-    let autoIsTiebreak = false
+    let autoIsTb = false
 
-    // Si llegan a 6-6 -> Tie-break
     if (next1 === 6 && next2 === 6) {
-      autoIsTiebreak = true
+      autoIsTb = true
       autoWinner = null
-      autoCompleted = false
     } else if (next1 >= 6 && next1 - next2 >= 2) {
-      // Ej: 6-0, 6-1, 6-2, 6-3, 6-4, 7-5
       autoWinner = 'team1'
-      autoCompleted = true
     } else if (next2 >= 6 && next2 - next1 >= 2) {
       autoWinner = 'team2'
-      autoCompleted = true
     } else if (next1 === 7 && next2 === 6) {
       autoWinner = 'team1'
-      autoCompleted = true
-      autoIsTiebreak = true
+      autoIsTb = true
     } else if (next2 === 7 && next1 === 6) {
       autoWinner = 'team2'
-      autoCompleted = true
-      autoIsTiebreak = true
+      autoIsTb = true
     }
 
     onUpdateMatch({
       ...match,
       score1: next1,
       score2: next2,
-      isTiebreak: autoIsTiebreak,
+      isTiebreak: autoIsTb,
       winner: autoWinner,
-      completed: autoCompleted,
+      // Keep completed as false until explicitly confirmed by the user!
+      completed: false,
     })
   }
 
@@ -76,6 +83,26 @@ export const MatchCard: React.FC<Props> = ({
       isTiebreak: true,
       winner: team,
       completed: true,
+    })
+  }
+
+  const handleConfirmFinalize = () => {
+    if (!potentialWinner) {
+      alert('Debes ingresar un marcador válido (ej. 6-4, 6-2, 6-0, 7-5 o 7-6 en Tie-Break)')
+      return
+    }
+
+    onUpdateMatch({
+      ...match,
+      winner: potentialWinner,
+      completed: true,
+    })
+  }
+
+  const handleUnlockToEdit = () => {
+    onUpdateMatch({
+      ...match,
+      completed: false,
     })
   }
 
@@ -121,10 +148,24 @@ export const MatchCard: React.FC<Props> = ({
           <span className="text-xs text-slate-500 font-medium">Partido #{match.matchNumber}</span>
         </div>
 
-        {match.completed && (
-          <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-full">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            Finalizado (+3 pts)
+        {match.completed ? (
+          <div className="flex items-center gap-1.5">
+            <span className="flex items-center gap-1 text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+              <CheckCircle2 className="w-3 h-3" />
+              Finalizado
+            </span>
+            <button
+              type="button"
+              onClick={handleUnlockToEdit}
+              className="text-[11px] text-slate-400 hover:text-white px-2 py-0.5 bg-slate-800 hover:bg-slate-700 rounded-md transition flex items-center gap-1"
+            >
+              <Edit3 className="w-3 h-3" />
+              Editar
+            </button>
+          </div>
+        ) : (
+          <span className="text-xs text-amber-400/90 font-medium animate-pulse">
+            En juego
           </span>
         )}
       </div>
@@ -158,7 +199,7 @@ export const MatchCard: React.FC<Props> = ({
           <div className="mt-3 pt-2.5 border-t border-slate-800/80">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] uppercase font-bold text-slate-500">Games</span>
-              <span className="text-xl font-black text-lime-400">{score1}</span>
+              <span className="text-2xl font-black text-lime-400">{score1}</span>
             </div>
             <div className="flex gap-1 justify-between">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((g) => (
@@ -166,9 +207,9 @@ export const MatchCard: React.FC<Props> = ({
                   key={g}
                   type="button"
                   onClick={() => handleSetGames('team1', g)}
-                  className={`w-6 h-7 rounded text-xs font-bold transition flex items-center justify-center ${
+                  className={`w-6 h-7 rounded text-xs font-bold transition flex items-center justify-center cursor-pointer ${
                     score1 === g
-                      ? 'bg-lime-400 text-slate-950 shadow-sm'
+                      ? 'bg-lime-400 text-slate-950 shadow-sm font-black'
                       : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
@@ -206,7 +247,7 @@ export const MatchCard: React.FC<Props> = ({
           <div className="mt-3 pt-2.5 border-t border-slate-800/80">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-[10px] uppercase font-bold text-slate-500">Games</span>
-              <span className="text-xl font-black text-cyan-400">{score2}</span>
+              <span className="text-2xl font-black text-cyan-400">{score2}</span>
             </div>
             <div className="flex gap-1 justify-between">
               {[0, 1, 2, 3, 4, 5, 6, 7].map((g) => (
@@ -214,9 +255,9 @@ export const MatchCard: React.FC<Props> = ({
                   key={g}
                   type="button"
                   onClick={() => handleSetGames('team2', g)}
-                  className={`w-6 h-7 rounded text-xs font-bold transition flex items-center justify-center ${
+                  className={`w-6 h-7 rounded text-xs font-bold transition flex items-center justify-center cursor-pointer ${
                     score2 === g
-                      ? 'bg-cyan-400 text-slate-950 shadow-sm'
+                      ? 'bg-cyan-400 text-slate-950 shadow-sm font-black'
                       : 'bg-slate-900 text-slate-400 hover:bg-slate-800 hover:text-white'
                   }`}
                 >
@@ -247,14 +288,14 @@ export const MatchCard: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => handleTiebreakWinner('team1')}
-              className="py-2.5 px-3 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition"
+              className="py-2.5 px-3 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition cursor-pointer"
             >
               🏆 Gana Pareja A (7-6)
             </button>
             <button
               type="button"
               onClick={() => handleTiebreakWinner('team2')}
-              className="py-2.5 px-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition"
+              className="py-2.5 px-3 bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold rounded-lg text-xs flex items-center justify-center gap-1 transition cursor-pointer"
             >
               🏆 Gana Pareja B (6-7)
             </button>
@@ -262,44 +303,68 @@ export const MatchCard: React.FC<Props> = ({
         </div>
       )}
 
+      {/* Confirm Finalize Action Button when not completed */}
+      {!match.completed && (
+        <div className="pt-1">
+          {potentialWinner ? (
+            <button
+              type="button"
+              onClick={handleConfirmFinalize}
+              className={`w-full py-3 px-4 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-md transition cursor-pointer ${
+                potentialWinner === 'team1'
+                  ? 'bg-lime-400 hover:bg-lime-300 text-slate-950 shadow-lime-400/20'
+                  : 'bg-cyan-400 hover:bg-cyan-300 text-slate-950 shadow-cyan-400/20'
+              }`}
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              Confirmar Partido: Gana {potentialWinner === 'team1' ? 'Pareja A' : 'Pareja B'} ({score1} - {score2})
+            </button>
+          ) : (
+            <div className="text-center py-1 text-[11px] text-slate-500 italic">
+              Marca los games de ambos equipos (ej. 6-4, 6-2) para confirmar el partido.
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Quick Score Presets bar */}
       <div className="flex items-center justify-between gap-1 overflow-x-auto pt-1 border-t border-slate-800/60">
         <span className="text-[10px] uppercase font-bold text-slate-500 whitespace-nowrap">
-          Tanteo rápido:
+          Carga rápida:
         </span>
         <div className="flex gap-1.5">
           <button
             type="button"
             onClick={() => handleQuickPreset(6, 4)}
-            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded"
+            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded cursor-pointer"
           >
             6 - 4
           </button>
           <button
             type="button"
             onClick={() => handleQuickPreset(6, 3)}
-            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded"
+            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded cursor-pointer"
           >
             6 - 3
           </button>
           <button
             type="button"
             onClick={() => handleQuickPreset(6, 2)}
-            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded"
+            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded cursor-pointer"
           >
             6 - 2
           </button>
           <button
             type="button"
             onClick={() => handleQuickPreset(7, 5)}
-            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded"
+            className="px-2 py-0.5 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[11px] font-semibold rounded cursor-pointer"
           >
             7 - 5
           </button>
           <button
             type="button"
             onClick={() => handleTiebreakWinner('team1')}
-            className="px-2 py-0.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-semibold rounded"
+            className="px-2 py-0.5 bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[11px] font-semibold rounded cursor-pointer"
           >
             7 - 6 (TB)
           </button>

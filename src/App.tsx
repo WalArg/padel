@@ -3,6 +3,7 @@ import type { Tournament, Player, TournamentFormat } from './types'
 import { TournamentSetup } from './components/TournamentSetup'
 import { TournamentView } from './components/TournamentView'
 import { generateInitialMatches } from './utils/tournament'
+import { saveTournamentToHistory } from './utils/savedTournaments'
 
 const STORAGE_KEY = 'padel_app_tournament_v4'
 const LAST_PLAYERS_KEY = 'padel_last_saved_players'
@@ -59,8 +60,8 @@ export function App() {
         if (data && data.players && data.players.length >= 4) {
           setTournament(data)
           localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+          saveTournamentToHistory(data)
           lastSavedJsonRef.current = JSON.stringify(data)
-          // Update URL query param cleanly
           window.history.replaceState(null, '', `?t=${data.code}`)
           return true
         }
@@ -84,11 +85,12 @@ export function App() {
     }
   }, [])
 
-  // Auto-guardado en LocalStorage y Cloud cuando cambia el torneo
+  // Auto-guardado en LocalStorage, Historial de Mis Torneos y Cloud
   useEffect(() => {
     try {
       if (tournament) {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(tournament))
+        saveTournamentToHistory(tournament)
         saveToCloud(tournament)
       } else {
         localStorage.removeItem(STORAGE_KEY)
@@ -110,6 +112,7 @@ export function App() {
           if (remote && remote.updatedAt && remote.updatedAt !== tournament.updatedAt) {
             setTournament(remote)
             localStorage.setItem(STORAGE_KEY, JSON.stringify(remote))
+            saveTournamentToHistory(remote)
             lastSavedJsonRef.current = JSON.stringify(remote)
           }
         }
@@ -133,7 +136,6 @@ export function App() {
       console.error(e)
     }
 
-    // Generar código numérico de 4 dígitos fácil de dictar
     const code = Math.floor(1000 + Math.random() * 9000).toString()
     const now = new Date().toISOString()
 
@@ -154,6 +156,7 @@ export function App() {
     initialTournament.matches = initialMatches
 
     setTournament(initialTournament)
+    saveTournamentToHistory(initialTournament)
     window.history.replaceState(null, '', `?t=${code}`)
   }
 
@@ -163,6 +166,7 @@ export function App() {
       updatedAt: new Date().toISOString(),
     }
     setTournament(withTimestamp)
+    saveTournamentToHistory(withTimestamp)
   }
 
   const handleRestartSamePlayers = () => {
@@ -178,6 +182,12 @@ export function App() {
     resetTournament.matches = freshMatches
 
     setTournament(resetTournament)
+    saveTournamentToHistory(resetTournament)
+  }
+
+  const handleSelectSavedTournament = (saved: Tournament) => {
+    setTournament(saved)
+    window.history.replaceState(null, '', `?t=${saved.code}`)
   }
 
   const handleResetTournament = () => {
@@ -192,6 +202,7 @@ export function App() {
           <TournamentSetup
             onStart={handleStartTournament}
             onJoinByCode={loadTournamentByCode}
+            onSelectSavedTournament={handleSelectSavedTournament}
             isLoading={isSyncing}
           />
         ) : (

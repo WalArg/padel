@@ -12,16 +12,15 @@ import {
   Trophy,
   Share2,
   PlusCircle,
-  RotateCcw,
   Zap,
   Users,
-  CheckCircle2,
   Clock,
   Link2,
   Shuffle,
   Check,
   Cloud,
   CloudCheck,
+  FolderOpen,
 } from 'lucide-react'
 
 interface Props {
@@ -48,15 +47,17 @@ export const TournamentView: React.FC<Props> = ({
   const standings = calculateStandings(tournament.players, tournament.matches)
   const playersMap = new Map(tournament.players.map((p) => [p.id, p]))
 
-  const activeMatches = tournament.matches.filter((m) => !m.completed)
+  // Find currently busy players (in matches that are not completed)
+  const activeUnfinishedMatches = tournament.matches.filter((m) => !m.completed)
   const completedMatches = tournament.matches.filter((m) => m.completed)
 
   const busyPlayerIds = new Set<string>()
-  activeMatches.forEach((m) => {
+  activeUnfinishedMatches.forEach((m) => {
     m.team1.forEach((id) => busyPlayerIds.add(id))
     m.team2.forEach((id) => busyPlayerIds.add(id))
   })
 
+  // Resting/waiting players
   const waitingPlayers = tournament.players.filter((p) => !busyPlayerIds.has(p.id))
 
   const handleUpdateMatch = (updatedMatch: Match) => {
@@ -69,6 +70,7 @@ export const TournamentView: React.FC<Props> = ({
     })
   }
 
+  // Generate next match for a specific court
   const handleGenerateNextForCourt = (courtNumber: number) => {
     const nextMatch = generateNextMatchForCourt(tournament, courtNumber)
     if (!nextMatch) {
@@ -115,12 +117,14 @@ export const TournamentView: React.FC<Props> = ({
 
   const winner = standings[0]
 
-  const freeCourts: number[] = []
+  // For each court (1..courtsCount), get its CURRENT match (latest match on that court)
+  const courtMatches: { courtNumber: number; match: Match | null }[] = []
   for (let c = 1; c <= tournament.courtsCount; c++) {
-    const hasActive = activeMatches.some((m) => m.courtNumber === c)
-    if (!hasActive) {
-      freeCourts.push(c)
-    }
+    const latestForCourt = tournament.matches
+      .slice()
+      .reverse()
+      .find((m) => m.courtNumber === c) ?? null
+    courtMatches.push({ courtNumber: c, match: latestForCourt })
   }
 
   return (
@@ -140,7 +144,7 @@ export const TournamentView: React.FC<Props> = ({
               {/* Cloud badge */}
               <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-1">
                 <Cloud className="w-2.5 h-2.5" />
-                Código: {tournament.code}
+                Código: #{tournament.code}
               </span>
             </div>
             <h1 className="text-xl font-black text-white">{tournament.name}</h1>
@@ -158,14 +162,14 @@ export const TournamentView: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => {
-                if (window.confirm('¿Deseas volver a la configuración? Los jugadores quedan guardados.')) {
+                if (window.confirm('¿Deseas volver a la lista de torneos o inicio? Este torneo queda guardado.')) {
                   onReset()
                 }
               }}
-              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs flex items-center gap-1 transition"
+              className="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs flex items-center gap-1.5 transition cursor-pointer"
             >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Inicio
+              <FolderOpen className="w-3.5 h-3.5 text-lime-400" />
+              Mis Torneos
             </button>
           </div>
         </div>
@@ -181,7 +185,7 @@ export const TournamentView: React.FC<Props> = ({
               <span className="text-red-400">{syncError}</span>
             ) : (
               <span className="text-emerald-400 flex items-center gap-1 font-medium">
-                <CloudCheck className="w-3.5 h-3.5" /> Guardado en vivo
+                <CloudCheck className="w-3.5 h-3.5" /> Guardado en la nube
               </span>
             )}
           </div>
@@ -198,16 +202,16 @@ export const TournamentView: React.FC<Props> = ({
                   onRestartSamePlayers()
                 }
               }}
-              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center gap-1 transition border border-slate-700"
+              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center gap-1 transition border border-slate-700 cursor-pointer"
             >
               <Shuffle className="w-3.5 h-3.5 text-lime-400" />
-              <span className="hidden sm:inline">Reiniciar</span>
+              <span className="hidden sm:inline">Reiniciar partidos</span>
             </button>
 
             <button
               type="button"
               onClick={handleCopyShareLink}
-              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center gap-1 transition border border-slate-700"
+              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center gap-1 transition border border-slate-700 cursor-pointer"
             >
               {copiedLink ? (
                 <>
@@ -230,19 +234,19 @@ export const TournamentView: React.FC<Props> = ({
         <button
           type="button"
           onClick={() => setActiveTab('matches')}
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'matches'
               ? 'bg-lime-400 text-slate-950 shadow-md shadow-lime-400/20'
               : 'text-slate-400 hover:text-white'
           }`}
         >
           <Zap className="w-3.5 h-3.5" />
-          Partidos en Curso ({activeMatches.length})
+          Canchas en Juego ({tournament.courtsCount})
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('standings')}
-          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+          className={`flex-1 py-2.5 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
             activeTab === 'standings'
               ? 'bg-lime-400 text-slate-950 shadow-md shadow-lime-400/20'
               : 'text-slate-400 hover:text-white'
@@ -255,17 +259,17 @@ export const TournamentView: React.FC<Props> = ({
 
       {/* Tab: Matches */}
       {activeTab === 'matches' && (
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Waiting / Resting Players Status Box */}
           {waitingPlayers.length > 0 && (
             <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-3.5 space-y-2">
               <div className="flex items-center justify-between text-xs">
                 <span className="font-bold text-amber-400 flex items-center gap-1.5">
                   <Users className="w-3.5 h-3.5" />
-                  Esperando próximo partido ({waitingPlayers.length}):
+                  Esperando próximo turno ({waitingPlayers.length} en el banco):
                 </span>
                 <span className="text-[11px] text-slate-400">
-                  Entran apenas se libere cancha
+                  Entran apenas termine una cancha
                 </span>
               </div>
               <div className="flex flex-wrap gap-1.5">
@@ -288,65 +292,47 @@ export const TournamentView: React.FC<Props> = ({
             </div>
           )}
 
-          {/* Free Courts: Prompt to generate next match immediately */}
-          {freeCourts.length > 0 && waitingPlayers.length >= 4 && (
-            <div className="space-y-2">
-              {freeCourts.map((cNum) => (
-                <button
-                  key={cNum}
-                  type="button"
-                  onClick={() => handleGenerateNextForCourt(cNum)}
-                  className="w-full py-3.5 px-4 bg-gradient-to-r from-lime-400 to-emerald-400 text-slate-950 font-black rounded-xl text-sm flex items-center justify-center gap-2 shadow-lg shadow-lime-400/20 hover:brightness-110 active:scale-95 transition cursor-pointer"
-                >
-                  <PlusCircle className="w-5 h-5" />
-                  ⚡ Cancha {cNum} Libre: ¡Armar Próximo Partido!
-                </button>
-              ))}
-            </div>
-          )}
-
-          {/* Active Matches List */}
+          {/* Court Slots: One slot per Court! */}
           <div className="space-y-4">
-            {activeMatches.length === 0 ? (
-              <div className="text-center p-8 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3">
-                <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto" />
-                <h3 className="font-bold text-white text-base">No hay partidos activos en este momento</h3>
-                <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                  Todos los partidos terminaron. Puedes armar el próximo partido para la cancha libre o finalizar el torneo.
-                </p>
-                {waitingPlayers.length >= 4 && (
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateNextForCourt(1)}
-                    className="px-5 py-2.5 bg-lime-400 text-slate-950 font-bold rounded-xl text-xs hover:bg-lime-300 transition"
-                  >
-                    ⚡ Armar Próximo Partido
-                  </button>
-                )}
-              </div>
-            ) : (
-              activeMatches.map((match) => (
-                <div key={match.id} className="space-y-2">
-                  <MatchCard
-                    match={match}
-                    playersMap={playersMap}
-                    onUpdateMatch={handleUpdateMatch}
-                  />
+            {courtMatches.map(({ courtNumber, match }) => {
+              return (
+                <div key={courtNumber} className="space-y-2">
+                  {match ? (
+                    <>
+                      <MatchCard
+                        match={match}
+                        playersMap={playersMap}
+                        onUpdateMatch={handleUpdateMatch}
+                      />
 
-                  {/* If completed, show button right below to launch next on this court */}
-                  {match.completed && (
-                    <button
-                      type="button"
-                      onClick={() => handleGenerateNextForCourt(match.courtNumber)}
-                      className="w-full py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
-                    >
-                      <PlusCircle className="w-4 h-4" />
-                      Partido terminado. ¡Armar siguiente para Cancha {match.courtNumber}!
-                    </button>
+                      {/* If completed, show button right below to launch next on this court */}
+                      {match.completed && (
+                        <button
+                          type="button"
+                          onClick={() => handleGenerateNextForCourt(courtNumber)}
+                          className="w-full py-3.5 px-4 bg-gradient-to-r from-lime-400 to-emerald-400 hover:brightness-110 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-lime-400/20 transition cursor-pointer"
+                        >
+                          <PlusCircle className="w-4 h-4" />
+                          ⚡ Cancha {courtNumber} Libre: ¡Armar Siguiente Partido!
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl text-center space-y-3">
+                      <p className="text-xs text-slate-400 font-semibold">Cancha {courtNumber} disponible</p>
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateNextForCourt(courtNumber)}
+                        className="py-2.5 px-4 bg-lime-400 hover:bg-lime-300 text-slate-950 font-bold rounded-xl text-xs inline-flex items-center gap-1.5 transition cursor-pointer"
+                      >
+                        <PlusCircle className="w-4 h-4" />
+                        Armar partido para Cancha {courtNumber}
+                      </button>
+                    </div>
                   )}
                 </div>
-              ))
-            )}
+              )
+            })}
           </div>
 
           {/* History of Completed Matches */}
@@ -403,7 +389,7 @@ export const TournamentView: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleFinishTournament}
-              className="w-full py-3.5 rounded-xl font-bold text-xs bg-slate-900 border border-slate-800 text-amber-400 hover:bg-slate-800 flex items-center justify-center gap-1.5 transition"
+              className="w-full py-3.5 rounded-xl font-bold text-xs bg-slate-900 border border-slate-800 text-amber-400 hover:bg-slate-800 flex items-center justify-center gap-1.5 transition cursor-pointer"
             >
               <Trophy className="w-4 h-4" />
               Finalizar Torneo y Proclamar Campeón
@@ -420,7 +406,7 @@ export const TournamentView: React.FC<Props> = ({
           <button
             type="button"
             onClick={handleShareWhatsApp}
-            className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition"
+            className="w-full py-3.5 rounded-xl font-bold text-sm bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition cursor-pointer"
           >
             <Share2 className="w-4 h-4" />
             Compartir Posiciones en Grupo de WhatsApp
@@ -455,7 +441,7 @@ export const TournamentView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={handleShareWhatsApp}
-                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition"
+                className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-sm flex items-center justify-center gap-2 transition cursor-pointer"
               >
                 <Share2 className="w-4 h-4" />
                 Compartir Victoria en WhatsApp
@@ -463,7 +449,7 @@ export const TournamentView: React.FC<Props> = ({
               <button
                 type="button"
                 onClick={() => setShowWinnerModal(false)}
-                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition"
+                className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition cursor-pointer"
               >
                 Cerrar
               </button>
