@@ -25,6 +25,7 @@ export type TournamentStatus = 'setup' | 'in_progress' | 'finished'
 
 export interface Tournament {
   id: string
+  code: string // Código corto para compartir, ej: "A742" o "4821"
   name: string
   format: TournamentFormat
   courtsCount: number // X canchas
@@ -32,6 +33,7 @@ export interface Tournament {
   matches: Match[]
   status: TournamentStatus
   createdAt: string
+  updatedAt?: string
 }
 
 export interface PlayerStats {

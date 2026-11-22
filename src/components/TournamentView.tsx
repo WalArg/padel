@@ -4,7 +4,6 @@ import {
   calculateStandings,
   formatWhatsAppSummary,
   generateNextMatchForCourt,
-  encodeTournamentToUrl,
 } from '../utils/tournament'
 import { MatchCard } from './MatchCard'
 import { StandingsTable } from './StandingsTable'
@@ -21,6 +20,8 @@ import {
   Link2,
   Shuffle,
   Check,
+  Cloud,
+  CloudCheck,
 } from 'lucide-react'
 
 interface Props {
@@ -28,6 +29,8 @@ interface Props {
   onUpdateTournament: (t: Tournament) => void
   onReset: () => void
   onRestartSamePlayers: () => void
+  isSyncing?: boolean
+  syncError?: string | null
 }
 
 export const TournamentView: React.FC<Props> = ({
@@ -35,6 +38,8 @@ export const TournamentView: React.FC<Props> = ({
   onUpdateTournament,
   onReset,
   onRestartSamePlayers,
+  isSyncing,
+  syncError,
 }) => {
   const [activeTab, setActiveTab] = useState<'matches' | 'standings'>('matches')
   const [showWinnerModal, setShowWinnerModal] = useState<boolean>(false)
@@ -43,18 +48,15 @@ export const TournamentView: React.FC<Props> = ({
   const standings = calculateStandings(tournament.players, tournament.matches)
   const playersMap = new Map(tournament.players.map((p) => [p.id, p]))
 
-  // Active matches (in progress or awaiting next)
   const activeMatches = tournament.matches.filter((m) => !m.completed)
   const completedMatches = tournament.matches.filter((m) => m.completed)
 
-  // Find currently busy players
   const busyPlayerIds = new Set<string>()
   activeMatches.forEach((m) => {
     m.team1.forEach((id) => busyPlayerIds.add(id))
     m.team2.forEach((id) => busyPlayerIds.add(id))
   })
 
-  // Resting/waiting players
   const waitingPlayers = tournament.players.filter((p) => !busyPlayerIds.has(p.id))
 
   const handleUpdateMatch = (updatedMatch: Match) => {
@@ -67,7 +69,6 @@ export const TournamentView: React.FC<Props> = ({
     })
   }
 
-  // Generate next match for a specific court
   const handleGenerateNextForCourt = (courtNumber: number) => {
     const nextMatch = generateNextMatchForCourt(tournament, courtNumber)
     if (!nextMatch) {
@@ -97,15 +98,15 @@ export const TournamentView: React.FC<Props> = ({
   }
 
   const handleShareWhatsApp = () => {
-    const text = formatWhatsAppSummary(tournament)
-    window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank')
+    let text = decodeURIComponent(formatWhatsAppSummary(tournament))
+    if (tournament.code) {
+      text += `\n📲 Seguilo y cargá resultados acá: ${window.location.origin}/?t=${tournament.code}`
+    }
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   const handleCopyShareLink = () => {
-    const encoded = encodeTournamentToUrl(tournament)
-    if (!encoded) return
-
-    const url = `${window.location.origin}${window.location.pathname}#t=${encoded}`
+    const url = `${window.location.origin}/?t=${tournament.code}`
     navigator.clipboard.writeText(url).then(() => {
       setCopiedLink(true)
       setTimeout(() => setCopiedLink(false), 3000)
@@ -114,7 +115,6 @@ export const TournamentView: React.FC<Props> = ({
 
   const winner = standings[0]
 
-  // Check courts that are currently free
   const freeCourts: number[] = []
   for (let c = 1; c <= tournament.courtsCount; c++) {
     const hasActive = activeMatches.some((m) => m.courtNumber === c)
@@ -137,6 +137,11 @@ export const TournamentView: React.FC<Props> = ({
               <span className="text-[10px] bg-slate-800 text-slate-300 px-2 py-0.5 rounded-full font-bold">
                 {tournament.courtsCount} {tournament.courtsCount === 1 ? 'Cancha' : 'Canchas'} • {tournament.players.length} Jugadores
               </span>
+              {/* Cloud badge */}
+              <span className="text-[10px] bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 px-2 py-0.5 rounded-full font-mono font-bold flex items-center gap-1">
+                <Cloud className="w-2.5 h-2.5" />
+                Código: {tournament.code}
+              </span>
             </div>
             <h1 className="text-xl font-black text-white">{tournament.name}</h1>
           </div>
@@ -145,7 +150,7 @@ export const TournamentView: React.FC<Props> = ({
             <button
               type="button"
               onClick={handleShareWhatsApp}
-              className="flex-1 sm:flex-initial px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition"
+              className="flex-1 sm:flex-initial px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition cursor-pointer"
             >
               <Share2 className="w-4 h-4" />
               WhatsApp
@@ -165,42 +170,58 @@ export const TournamentView: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Quick Tools Row: Re-roll pairs & Copy Link */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-800/80 text-xs">
-          <button
-            type="button"
-            onClick={() => {
-              if (
-                window.confirm(
-                  `¿Reiniciar de cero con los mismos ${tournament.players.length} jugadores? Se limpiarán los resultados y se sortearán cruces nuevos.`
-                )
-              ) {
-                onRestartSamePlayers()
-              }
-            }}
-            className="flex-1 py-1.5 px-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center justify-center gap-1.5 transition border border-slate-700/60"
-          >
-            <Shuffle className="w-3.5 h-3.5 text-lime-400" />
-            Reiniciar (Mismos jugadores)
-          </button>
-
-          <button
-            type="button"
-            onClick={handleCopyShareLink}
-            className="flex-1 py-1.5 px-2.5 bg-slate-800/80 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center justify-center gap-1.5 transition border border-slate-700/60"
-          >
-            {copiedLink ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-400" />
-                <span className="text-emerald-400 font-bold">¡Link copiado!</span>
-              </>
+        {/* Cloud Sync Status & Quick Links */}
+        <div className="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80 text-xs">
+          <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
+            {isSyncing ? (
+              <span className="text-amber-400 flex items-center gap-1">
+                <Cloud className="w-3.5 h-3.5 animate-pulse" /> Sincronizando nube...
+              </span>
+            ) : syncError ? (
+              <span className="text-red-400">{syncError}</span>
             ) : (
-              <>
-                <Link2 className="w-3.5 h-3.5 text-cyan-400" />
-                <span>Copiar link del torneo</span>
-              </>
+              <span className="text-emerald-400 flex items-center gap-1 font-medium">
+                <CloudCheck className="w-3.5 h-3.5" /> Guardado en vivo
+              </span>
             )}
-          </button>
+          </div>
+
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `¿Reiniciar de cero con los mismos ${tournament.players.length} jugadores? Se limpiarán los resultados y se sortearán cruces nuevos.`
+                  )
+                ) {
+                  onRestartSamePlayers()
+                }
+              }}
+              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center gap-1 transition border border-slate-700"
+            >
+              <Shuffle className="w-3.5 h-3.5 text-lime-400" />
+              <span className="hidden sm:inline">Reiniciar</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={handleCopyShareLink}
+              className="py-1.5 px-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium rounded-lg flex items-center gap-1 transition border border-slate-700"
+            >
+              {copiedLink ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400 font-bold">¡Copiado!</span>
+                </>
+              ) : (
+                <>
+                  <Link2 className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>Link corto: #{tournament.code}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -317,7 +338,7 @@ export const TournamentView: React.FC<Props> = ({
                     <button
                       type="button"
                       onClick={() => handleGenerateNextForCourt(match.courtNumber)}
-                      className="w-full py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+                      className="w-full py-2.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/40 text-emerald-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
                     >
                       <PlusCircle className="w-4 h-4" />
                       Partido terminado. ¡Armar siguiente para Cancha {match.courtNumber}!

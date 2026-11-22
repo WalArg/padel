@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus, ClipboardPaste, X, RotateCcw, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus, ClipboardPaste, X, RotateCcw, Sparkles, KeyRound } from 'lucide-react'
 import type { Player, TournamentFormat } from '../types'
 
 const LAST_PLAYERS_KEY = 'padel_last_saved_players'
 
 interface Props {
   onStart: (name: string, format: TournamentFormat, courtsCount: number, players: Player[]) => void
+  onJoinByCode: (code: string) => Promise<boolean>
+  isLoading?: boolean
 }
 
-export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
+export const TournamentSetup: React.FC<Props> = ({ onStart, onJoinByCode, isLoading }) => {
   const [tournamentName, setTournamentName] = useState('Torneo de Pádel')
   const format: TournamentFormat = 'mexicano'
   const [newPlayerName, setNewPlayerName] = useState('')
@@ -17,6 +19,10 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
   const [showPasteModal, setShowPasteModal] = useState(false)
   const [pasteText, setPasteText] = useState('')
   const [savedPreviousPlayers, setSavedPreviousPlayers] = useState<Player[]>([])
+
+  // Join by code input
+  const [joinCode, setJoinCode] = useState('')
+  const [isJoining, setIsJoining] = useState(false)
 
   useEffect(() => {
     try {
@@ -94,6 +100,14 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
     }
   }
 
+  const handleJoin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!joinCode.trim()) return
+    setIsJoining(true)
+    await onJoinByCode(joinCode.trim())
+    setIsJoining(false)
+  }
+
   const activePlayersPerRound = courtsCount * 4
   const restingPlayersCount = Math.max(0, players.length - activePlayersPerRound)
   const canStart = players.length >= 4 && courtsCount >= 1 && players.length >= activePlayersPerRound
@@ -109,8 +123,32 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           Pádel
         </h1>
         <p className="text-sm text-slate-400 max-w-sm mx-auto">
-          Arma tu torneo en segundos. Cruces didácticos a 6 games y tie-break.
+          Arma tu torneo o únete con un código en vivo en la nube.
         </p>
+      </div>
+
+      {/* Join Existing Tournament Banner */}
+      <div className="bg-slate-900/70 border border-slate-800 rounded-2xl p-4 shadow-md">
+        <form onSubmit={handleJoin} className="flex flex-col sm:flex-row items-center gap-2.5">
+          <div className="flex items-center gap-2 flex-1 w-full">
+            <KeyRound className="w-4 h-4 text-lime-400 flex-shrink-0" />
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="Código de 4 dígitos (ej. 4821)..."
+              maxLength={8}
+              className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white text-xs font-mono uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-lime-400"
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={!joinCode.trim() || isJoining || isLoading}
+            className="w-full sm:w-auto px-4 py-2 bg-slate-800 hover:bg-slate-700 text-lime-300 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 border border-slate-700 disabled:opacity-40 transition"
+          >
+            {isJoining || isLoading ? 'Buscando...' : 'Entrar a Torneo'}
+          </button>
+        </form>
       </div>
 
       <div className="bg-slate-900/90 backdrop-blur border border-slate-800 rounded-2xl p-5 sm:p-6 space-y-6 shadow-xl">
@@ -295,6 +333,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
                   <span>🎾 Games a 6 (Tie-Break en 6-6)</span>
                   <span>🏆 Victoria: +3 pts</span>
                   <span>❌ Derrota: 0 pts</span>
+                  <span className="text-emerald-400 font-semibold">☁️ Nube Upstash</span>
                 </div>
               </div>
             </div>
@@ -313,7 +352,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           }`}
         >
           <Play className="w-5 h-5 fill-current" />
-          ¡Comenzar Torneo ({players.length} Jugadores)!
+          ¡Crear Torneo en la Nube ({players.length} Jugadores)!
         </button>
       </div>
 
