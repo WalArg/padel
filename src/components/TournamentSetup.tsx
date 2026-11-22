@@ -1,6 +1,8 @@
-import React, { useState } from 'react'
-import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus, ClipboardPaste, X } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Trash2, Users, Trophy, Play, LayoutGrid, Info, Minus, ClipboardPaste, X, RotateCcw, Sparkles } from 'lucide-react'
 import type { Player, TournamentFormat } from '../types'
+
+const LAST_PLAYERS_KEY = 'padel_last_saved_players'
 
 interface Props {
   onStart: (name: string, format: TournamentFormat, courtsCount: number, players: Player[]) => void
@@ -10,20 +12,36 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
   const [tournamentName, setTournamentName] = useState('Torneo de Pádel')
   const format: TournamentFormat = 'mexicano'
   const [newPlayerName, setNewPlayerName] = useState('')
-  // No default names: user loads them manually or pastes list
   const [players, setPlayers] = useState<Player[]>([])
   const [courtsCount, setCourtsCount] = useState<number>(2)
   const [showPasteModal, setShowPasteModal] = useState(false)
   const [pasteText, setPasteText] = useState('')
+  const [savedPreviousPlayers, setSavedPreviousPlayers] = useState<Player[]>([])
+
+  useEffect(() => {
+    try {
+      const prev = localStorage.getItem(LAST_PLAYERS_KEY)
+      if (prev) {
+        const parsed = JSON.parse(prev) as Player[]
+        if (parsed && parsed.length >= 4) {
+          setSavedPreviousPlayers(parsed)
+        }
+      }
+    } catch (e) {
+      console.error('Error loading previous players', e)
+    }
+  }, [])
 
   const handleAddPlayer = () => {
     const trimmed = newPlayerName.trim()
     if (!trimmed) return
-    setPlayers((prev) => [
-      ...prev,
+    const updated = [
+      ...players,
       { id: `p-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`, name: trimmed },
-    ])
+    ]
+    setPlayers(updated)
     setNewPlayerName('')
+    localStorage.setItem(LAST_PLAYERS_KEY, JSON.stringify(updated))
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -34,13 +52,27 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
   }
 
   const handleRemovePlayer = (id: string) => {
-    setPlayers((prev) => prev.filter((p) => p.id !== id))
+    const updated = players.filter((p) => p.id !== id)
+    setPlayers(updated)
+    localStorage.setItem(LAST_PLAYERS_KEY, JSON.stringify(updated))
+  }
+
+  const handleClearAllPlayers = () => {
+    if (players.length > 0 && window.confirm('¿Deseas vaciar la lista de jugadores?')) {
+      setPlayers([])
+    }
+  }
+
+  const handleUsePreviousPlayers = () => {
+    setPlayers(savedPreviousPlayers)
+    if (savedPreviousPlayers.length >= 4) {
+      setCourtsCount(Math.max(1, Math.floor(savedPreviousPlayers.length / 4)))
+    }
   }
 
   const handleBulkPaste = () => {
     if (!pasteText.trim()) return
 
-    // Clean lines, remove numbers like "1. ", "1 - ", emojis or bullet points
     const lines = pasteText
       .split(/[\n,]+/)
       .map((line) => line.replace(/^[\s\d.-]+/, '').trim())
@@ -51,14 +83,14 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
       name,
     }))
 
-    setPlayers((prev) => [...prev, ...newPlayers])
+    const updated = [...players, ...newPlayers]
+    setPlayers(updated)
+    localStorage.setItem(LAST_PLAYERS_KEY, JSON.stringify(updated))
     setPasteText('')
     setShowPasteModal(false)
 
-    // Suggest courts if needed
-    const total = players.length + newPlayers.length
-    if (total >= 4) {
-      setCourtsCount(Math.max(1, Math.floor(total / 4)))
+    if (updated.length >= 4) {
+      setCourtsCount(Math.max(1, Math.floor(updated.length / 4)))
     }
   }
 
@@ -77,7 +109,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           Pádel
         </h1>
         <p className="text-sm text-slate-400 max-w-sm mx-auto">
-          Arma los partidos de tu torneo en segundos. Cruces por nivel a 6 games y tie-break.
+          Arma tu torneo en segundos. Cruces didácticos a 6 games y tie-break.
         </p>
       </div>
 
@@ -151,14 +183,36 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
               <Users className="w-4 h-4 text-lime-400" />
               Participantes ({players.length})
             </label>
-            <button
-              type="button"
-              onClick={() => setShowPasteModal(true)}
-              className="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-lime-400 font-semibold rounded-lg flex items-center gap-1.5 transition"
-            >
-              <ClipboardPaste className="w-3.5 h-3.5" />
-              Pegar lista de WhatsApp
-            </button>
+            <div className="flex items-center gap-1.5">
+              {savedPreviousPlayers.length >= 4 && players.length === 0 && (
+                <button
+                  type="button"
+                  onClick={handleUsePreviousPlayers}
+                  className="text-xs px-2.5 py-1 bg-lime-400/10 hover:bg-lime-400/20 text-lime-300 border border-lime-400/30 font-semibold rounded-lg flex items-center gap-1 transition"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-lime-400" />
+                  Cargar anteriores ({savedPreviousPlayers.length})
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowPasteModal(true)}
+                className="text-xs px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-lg flex items-center gap-1.5 transition"
+              >
+                <ClipboardPaste className="w-3.5 h-3.5 text-lime-400" />
+                Pegar lista
+              </button>
+              {players.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllPlayers}
+                  title="Vaciar lista"
+                  className="text-xs p-1 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-lg transition"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Add input */}
@@ -185,7 +239,7 @@ export const TournamentSetup: React.FC<Props> = ({ onStart }) => {
           <div className="flex flex-wrap gap-2 max-h-52 overflow-y-auto p-3 bg-slate-950/70 border border-slate-800/80 rounded-xl min-h-[70px] items-center">
             {players.length === 0 ? (
               <p className="text-xs text-slate-500 italic w-full text-center py-2">
-                No hay participantes cargados. Agrega los nombres arriba o presiona "Pegar lista de WhatsApp".
+                No hay participantes cargados. Agrega los nombres arriba o presiona "Pegar lista".
               </p>
             ) : (
               players.map((player, index) => (

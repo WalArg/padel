@@ -2,12 +2,25 @@ import { useState, useEffect } from 'react'
 import type { Tournament, Player, TournamentFormat } from './types'
 import { TournamentSetup } from './components/TournamentSetup'
 import { TournamentView } from './components/TournamentView'
-import { generateInitialMatches } from './utils/tournament'
+import { generateInitialMatches, decodeTournamentFromUrl } from './utils/tournament'
 
 const STORAGE_KEY = 'padel_app_tournament_v3'
+const LAST_PLAYERS_KEY = 'padel_last_saved_players'
 
 export function App() {
   const [tournament, setTournament] = useState<Tournament | null>(() => {
+    // 1. Check if URL hash has a shared tournament (#t=...)
+    if (window.location.hash.startsWith('#t=')) {
+      const raw = window.location.hash.substring(3)
+      const decoded = decodeTournamentFromUrl(raw)
+      if (decoded && decoded.players && decoded.players.length >= 4) {
+        // Clear hash so it doesn't linger
+        window.history.replaceState(null, '', window.location.pathname)
+        return decoded
+      }
+    }
+
+    // 2. Otherwise load from local storage
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) {
@@ -37,6 +50,13 @@ export function App() {
     courtsCount: number,
     players: Player[]
   ) => {
+    // Save players list for future re-use
+    try {
+      localStorage.setItem(LAST_PLAYERS_KEY, JSON.stringify(players))
+    } catch (e) {
+      console.error(e)
+    }
+
     const initialTournament: Tournament = {
       id: `tourney-${Date.now()}`,
       name,
@@ -48,11 +68,29 @@ export function App() {
       createdAt: new Date().toISOString(),
     }
 
-    // Generate initial matches for all courts
+    // Generate initial matches
     const initialMatches = generateInitialMatches(initialTournament)
     initialTournament.matches = initialMatches
 
     setTournament(initialTournament)
+  }
+
+  // Reiniciar el torneo de cero manteniendo exactamente los mismos jugadores y canchas
+  const handleRestartSamePlayers = () => {
+    if (!tournament) return
+
+    const resetTournament: Tournament = {
+      ...tournament,
+      id: `tourney-${Date.now()}`,
+      matches: [],
+      status: 'in_progress',
+      createdAt: new Date().toISOString(),
+    }
+
+    const freshMatches = generateInitialMatches(resetTournament)
+    resetTournament.matches = freshMatches
+
+    setTournament(resetTournament)
   }
 
   const handleResetTournament = () => {
@@ -69,6 +107,7 @@ export function App() {
             tournament={tournament}
             onUpdateTournament={setTournament}
             onReset={handleResetTournament}
+            onRestartSamePlayers={handleRestartSamePlayers}
           />
         )}
       </main>

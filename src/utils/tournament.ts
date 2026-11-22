@@ -38,7 +38,7 @@ export function calculateStandings(players: Player[], matches: Match[]): PlayerS
         st.played += 1
         if (isWinner) {
           st.won += 1
-          st.points += 3 // Regla: 3 puntos por victoria
+          st.points += 3 // 3 puntos por victoria
           st.history.push('W')
         } else {
           st.lost += 1
@@ -76,7 +76,6 @@ export function calculateStandings(players: Player[], matches: Match[]): PlayerS
   })
 }
 
-// Cuenta cuántas veces dos jugadores fueron compañeros en partidos pasados
 function getTeammateCount(p1: string, p2: string, pastMatches: Match[]): number {
   let count = 0
   for (const m of pastMatches) {
@@ -90,7 +89,6 @@ function getTeammateCount(p1: string, p2: string, pastMatches: Match[]): number 
   return count
 }
 
-// Empareja 4 jugadores minimizando compañeros repetidos
 function pairFourPlayers(
   p: string[],
   pastMatches: Match[],
@@ -137,7 +135,6 @@ function pairFourPlayers(
   }
 }
 
-// Genera los partidos iniciales para todas las canchas (Ronda 1)
 export function generateInitialMatches(tournament: Tournament): Match[] {
   const courts = tournament.courtsCount
   const allPlayers = [...tournament.players]
@@ -159,10 +156,6 @@ export function generateInitialMatches(tournament: Tournament): Match[] {
   return matches
 }
 
-// Genera el próximo partido para una cancha que quedó libre
-// Garantiza:
-// 1. Equidad en partidos jugados (PJ): eligen a quienes MENOS jugaron
-// 2. Nivel: entre los que menos jugaron, agrupa a los más cercanos en la tabla
 export function generateNextMatchForCourt(
   tournament: Tournament,
   courtNumber: number
@@ -170,7 +163,6 @@ export function generateNextMatchForCourt(
   const pastMatches = tournament.matches
   const allPlayers = tournament.players
 
-  // Jugadores actualmente jugando (en partidos activos no completados)
   const busyPlayerIds = new Set<string>()
   pastMatches
     .filter((m) => !m.completed)
@@ -179,27 +171,21 @@ export function generateNextMatchForCourt(
       m.team2.forEach((id) => busyPlayerIds.add(id))
     })
 
-  // Jugadores disponibles
   const availablePlayers = allPlayers.filter((p) => !busyPlayerIds.has(p.id))
   if (availablePlayers.length < 4) {
-    return null // No hay suficientes disponibles todavía
+    return null
   }
 
-  // Tabla actual
   const standings = calculateStandings(allPlayers, pastMatches)
   const availableStandings = standings.filter((s) => !busyPlayerIds.has(s.playerId))
 
-  // 1. REGLA DE ORO DE EQUIDAD:
-  // Ordenar por PJ ascendente para que nadie quede jugando 6 mientras otro jugó 2.
-  // 2. REGLA DE NIVEL:
-  // Dentro del mismo PJ (o más cercano), ordenar por posición en la tabla.
+  // 1. Prioridad: menor cantidad de partidos jugados
+  // 2. Nivel: agrupar por ranking/puntos
   availableStandings.sort((a, b) => {
     if (a.played !== b.played) return a.played - b.played
-    // Entre los que jugaron lo mismo, agrupar por puntos/ranking
     return b.points - a.points
   })
 
-  // Tomamos los 4 jugadores prioritarios
   const selectedFour = availableStandings.slice(0, 4)
   const matchNumber = pastMatches.length + 1
 
@@ -229,4 +215,36 @@ export function formatWhatsAppSummary(tournament: Tournament): string {
 
   text += `\n🎾 Padel App`
   return encodeURIComponent(text)
+}
+
+// Codifica el torneo a un string base64 seguro para URL
+export function encodeTournamentToUrl(tournament: Tournament): string {
+  try {
+    const json = JSON.stringify(tournament)
+    const bytes = new TextEncoder().encode(json)
+    let binary = ''
+    for (let i = 0; i < bytes.length; i++) {
+      binary += String.fromCharCode(bytes[i])
+    }
+    return btoa(binary)
+  } catch (e) {
+    console.error('Error encoding tournament', e)
+    return ''
+  }
+}
+
+// Decodifica el torneo desde un hash URL
+export function decodeTournamentFromUrl(encoded: string): Tournament | null {
+  try {
+    const binary = atob(encoded)
+    const bytes = new Uint8Array(binary.length)
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i)
+    }
+    const json = new TextDecoder().decode(bytes)
+    return JSON.parse(json) as Tournament
+  } catch (e) {
+    console.error('Error decoding tournament', e)
+    return null
+  }
 }
